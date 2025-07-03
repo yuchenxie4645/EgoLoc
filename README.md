@@ -40,8 +40,8 @@ The output TIL results are saved in `output` folder.
 
 | Video                | Contact                          | Separation                        |
 |----------------------|----------------------------------|-----------------------------------|
-| **video1**    | ![contact1](output/video1_contact_frame.png) | ![separation1](output/video1_separation_frame.png) |
-| **video2**     | ![contact2](output/video2_contact_frame.png) | ![separation2](output/video2_separation_frame.png) |
+| **video1**    | <img src="output/video1_contact_frame.png" width="200" style="padding: 0; border: none;" /> | <img src="output/video1_separation_frame.png" width="200" style="padding: 0; border: none;" /> |
+| **video2**     | <img src="output/video2_contact_frame.png" width="200" style="padding: 0; border: none;" /> | <img src="output/video1_separation_frame.png" width="200" style="padding: 0; border: none;" /> |
 
 Note that EgoLoc may output slightly different TIL results for different runs due to the inherent randomness in VLM-based reasoning.
 
