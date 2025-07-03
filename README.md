@@ -3,7 +3,7 @@
 Authors: [Erhang Zhang*](https://scholar.google.com/citations?user=j1mUqHEAAAAJ&hl=en), [Junyi Ma*](https://github.com/BIT-MJY), [Yin-Dong Zheng](https://dblp.org/pid/249/8371.html), [Yixuan Zhou](https://ieeexplore.ieee.org/author/37089460430), [Hesheng Wang](https://scholar.google.com/citations?user=q6AY9XsAAAAJ&hl)
 
 <div align="center">
- <img src="demo.gif" alt="demo" width="600" />
+ <img src="demo.gif" alt="demo" width="70%" />
 </div>
 
 
@@ -14,7 +14,7 @@ EgoLoc is a VLM-based paradigm to localize the hand-object contact/separation ti
  from <font color="blue">[🧭TAL]</font> to <font color="red">[🎯TIL]</font>
  </h3>
 
- <img src="TAL_TIL.png" alt="TAL to TIL Diagram" width="600" />
+ <img src="TAL_TIL.png" alt="TAL to TIL Diagram" width="70%" />
 </div>
 
 ## 1. How to Use
