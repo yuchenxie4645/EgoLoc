@@ -8,7 +8,9 @@ EgoLoc is a VLM-based paradigm to localize the hand-object contact/separation ti
   <span style="font-size: 20px; font-weight: bold;">
     from <span style="color: blue;">TAL</span> to <span style="color: red;">TIL</span>
   </span>
-  <br />  <!-- 换行 -->
+
+  <br /> 
+
   <img src="TAL_TIL.png" alt="TAL to TIL Diagram" width="400" />
 </div>
 
