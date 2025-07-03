@@ -3,7 +3,9 @@
 Authors: [Erhang Zhang*](https://scholar.google.com/citations?user=j1mUqHEAAAAJ&hl=en), [Junyi Ma*](https://github.com/BIT-MJY), [Yin-Dong Zheng](https://dblp.org/pid/249/8371.html), [Yixuan Zhou](https://ieeexplore.ieee.org/author/37089460430), [Hesheng Wang](https://scholar.google.com/citations?user=q6AY9XsAAAAJ&hl)
 
 <div align="center">
- <img src="demo.gif" alt="demo" width="600" />
+  <video autoplay loop muted playsinline width="600">
+    <source src="demo.mp4" type="video/mp4">
+  </video>
 </div>
 
 
