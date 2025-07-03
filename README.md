@@ -5,13 +5,10 @@ Authors: [Erhang Zhang*](https://scholar.google.com/citations?user=j1mUqHEAAAAJ&
 EgoLoc is a VLM-based paradigm to localize the hand-object contact/separation timestamps for egocentric videos in a zero-shot manner. We therefore extend the coarse temporal action localization (TAL) to finer-grained temporal interaction localization (TIL). [Our paper](https://arxiv.org/abs/2506.03662) is accepted by IROS 2025.
 
 <div align="center">
-  <span style="font-size: 20px; font-weight: bold;">
-    from 
-    <span style="color: #0066cc;">TAL</span> 
-    to 
-    <span style="color: #ff0000;">TIL</span>
-  </span>
-  <br />
+  <h3>
+    from <font color="blue">TAL</font> to <font color="red">TIL</font>
+  </h3>
+
   <img src="TAL_TIL.png" alt="TAL to TIL Diagram" width="400" />
 </div>
 
