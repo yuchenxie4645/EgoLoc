@@ -31,7 +31,7 @@ git clone https://github.com/IDEA-Research/Grounded-Segment-Anything
 
 ### 1.2 Run EgoLoc
 
-We provide two example videos to show how EgoLoc works in a closed-loop manner. 
+We provide two example videos to show how our 2D-version EgoLoc works in a closed-loop manner. For quick use, please run:
 
 ```bash
 python egoloc_2D_demo.py --video_path ./video1.mp4 --output_dir output --config Grounded-Segment-Anything/GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py --grounded_checkpoint Grounded-Segment-Anything/groundingdino_swint_ogc.pth --sam_checkpoint Grounded-Segment-Anything/sam_vit_h_4b8939.pth --bert_base_uncased_path  Grounded-Segment-Anything/bert-base-uncased/ --text_prompt hand --box_threshold 0.3 --text_threshold 0.25 --device cuda --credentials auth.env --action "Grasping the object" --grid_size 3 --max_feedbacks 1
@@ -49,7 +49,7 @@ Note that EgoLoc may output slightly different TIL results for different runs du
 
 ### 1.3 Configurations
 
-Here are some key params to run the code. For some configs related to GroundedSAM, please refer to the [original repo](https://github.com/IDEA-Research/Grounded-Segment-Anything).
+Here are some key params to run the code. For some configs related to files from GroundedSAM, please refer to the [original repo](https://github.com/IDEA-Research/Grounded-Segment-Anything).
 
 * **video_path**: Path to the target HOI video
 
@@ -66,7 +66,7 @@ Here are some key params to run the code. For some configs related to GroundedSA
 * **credentials**: File with openai api key
 
 
-We will release the full-blood version after we evolve EgoLoc to a more powerful solution. Moreover, we will present how to integrate EgoLoc on the SOTA hand motion forecasting paradigm such as [MMTwin](https://github.com/IRMVLab/MMTwin), and how to deploy it on robot manipulation tasks. But for now, enjoy the demos here and also try your own videos! 😎
+We will release the full-blood version and new benchmarks after we evolve EgoLoc to a more powerful solution. Moreover, we will present how to integrate EgoLoc on the SOTA hand motion forecasting paradigm such as [MMTwin](https://github.com/IRMVLab/MMTwin), and how to deploy it on robot manipulation tasks. But for now, enjoy the demos here and also try your own videos! 😎
 
 ## 2. Citation
 
