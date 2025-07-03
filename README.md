@@ -6,11 +6,12 @@ EgoLoc is a VLM-based paradigm to localize the hand-object contact/separation ti
 
 <div align="center">
   <span style="font-size: 20px; font-weight: bold;">
-    from <span style="color: blue;">TAL</span> to <span style="color: red;">TIL</span>
+    from 
+    <span style="color: #0066cc;">TAL</span> 
+    to 
+    <span style="color: #ff0000;">TIL</span>
   </span>
-
-  <br /> 
-
+  <br />
   <img src="TAL_TIL.png" alt="TAL to TIL Diagram" width="400" />
 </div>
 
@@ -49,27 +50,24 @@ Note that EgoLoc may output slightly different TIL results for different runs du
 
 
 
-
 ### 1.3 Configurations
 
-* **video_path**
+Here are some key params to run the code. For some configs related to GroundedSAM, please refer to the [original repo](https://github.com/IDEA-Research/Grounded-Segment-Anything).
 
-* **output_dir**
+* **video_path**: Path to the target HOI video
 
-* **config**
+* **output_dir**: Path to the output folder
 
-* **text_prompt**
+* **text_prompt**: Prompt for hand grounding
 
-* **box_threshold**
+* **box_threshold**: Hand grounding threshold
 
-* **action**
+* **grid_size**: Size of the image grid that acts as the visual prompt for VLM-based localization
 
-* **grid_size**
-
-* **max_feedbacks**
+* **max_feedbacks**: times of feedback
 
 
-We will release the full-blood version of EgoLoc after we evolve to a more powerful solution.
+We will release the full-blood version after we evolve EgoLoc to a more powerful solution.
 
 ## 2. Citation
 
