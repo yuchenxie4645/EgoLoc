@@ -102,4 +102,10 @@ We will release the full-blood version and new benchmarks after we evolve EgoLoc
 
 ## 3. TODO
 
-We will release the full-featured version along with the evolved paper before the start of IROS 2025 (Hangzhou). At that time, the code will be re-organized to support sensors w/ and w/o depth, and videos of multiple HOI stages. Your patience is appreciated.
+- [x] Integrate 3D hand motion analysis (in two weeks)
+- [x] Support ling untrimmed videos (before the start of IROS 2025)
+- [x] Streamline a more efficient feedback scheme (before the start of IROS 2025)
+
+
+
+
