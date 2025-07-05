@@ -102,9 +102,11 @@ We will release the full-blood version and new benchmarks after we evolve EgoLoc
 
 ## 3. TODO
 
-- [x] Integrate 3D hand motion analysis (in two weeks)
-- [x] Support ling untrimmed videos (before the start of IROS 2025)
-- [x] Streamline a more efficient feedback scheme (before the start of IROS 2025)
+- [] Integrate 3D hand motion analysis (in two weeks)
+- [] Support ling untrimmed videos (before the start of IROS 2025)
+- [] Streamline a more efficient feedback scheme (before the start of IROS 2025)
+
+Your patience is greatly appreciated.
 
 
 
