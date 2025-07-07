@@ -22,14 +22,13 @@
 
 ## 1. Getting Started
 
-We provide two demo videos from the [EgoPAT3D-DT dataset](https://github.com/oppo-us-research/USST) for quick experimentation.
+> We provide two demo videos from the [EgoPAT3D-DT dataset](https://github.com/oppo-us-research/USST) for quick experimentation.
 
 ---
 
-### 1.1 Environment setup & dependency installation 🚀
+### 1.1 EgoLoc & Grounded-SAM Environment setup & dependency installation 🚀
 
-<details>
-<summary><strong>TL;DR</strong> (one-liner)</summary>
+#### EgoLoc One-Liner Installation - **For Conda**
 
 ```bash
 conda create -n egoloc python=3.10 -y && conda activate egoloc && \
@@ -37,43 +36,10 @@ git clone https://github.com/IRMVLab/EgoLoc.git && cd EgoLoc && \
 pip install -r requirements.txt
 ```
 
-</details>
+<details>
+<summary><strong>Grounded-SAM Dependency Installation</strong> (Mandatory)</summary>
 
-If you prefer to see the exact commands, read on ⬇️
-
-
-
-#### Step 0 (Optional) – Create a clean virtual env
-
-
-```bash
-conda create -n egoloc python=3.10 -y      # or python 3.9
-conda activate egoloc
-```
-
-
-
-#### Step 1 – Clone the main repo
-
-
-```bash
-git clone https://github.com/IRMVLab/EgoLoc.git
-cd EgoLoc
-```
-
-
-
-#### Step 2 – Install core Python requirements
-
-
-```bash
-pip install -r requirements.txt
-```
-
-
-
-#### Step 3 – Clone Grounded-SAM (with submodules)
-
+#### Step 1 – Clone Grounded-SAM (with submodules)
 
 ```bash
 git clone --recursive https://github.com/IDEA-Research/Grounded-Segment-Anything.git
@@ -81,16 +47,12 @@ git clone --recursive https://github.com/IDEA-Research/Grounded-Segment-Anything
 
 If you plan to use **CUDA** (recommended for speed) *outside* Docker, set:
 
-
 ```bash
 export AM_I_DOCKER=False
 export BUILD_WITH_CUDA=True          # ensures CUDA kernels are compiled
 ```
 
-
-
-#### Step 4 – Build Grounded-SAM components
-
+#### Step 2 – Build Grounded-SAM components
 
 ```bash
 # 4-A  Segment Anything (SAM)
@@ -100,20 +62,14 @@ python -m pip install -e Grounded-Segment-Anything/segment_anything
 pip install --no-build-isolation -e Grounded-Segment-Anything/GroundingDINO
 ```
 
-
-
-#### Step 5 – Vision-language extras
-
+#### Step 3 – Vision-language extras
 
 ```bash
 # Diffusers (for prompt-based image generation; optional but handy)
 pip install --upgrade 'diffusers[torch]'
 ```
 
-
-
-#### Step 6 – OSX module (object-centric cross-attention)
-
+#### Step 4 – OSX module (object-centric cross-attention)
 
 ```bash
 git submodule update --init --recursive
@@ -122,10 +78,7 @@ bash install.sh          # compiles custom ops
 cd ../..                 # return to project root
 ```
 
-
-
-#### Step 7 – RAM & Tag2Text (open-vocabulary tagger)
-
+#### Step 5 – RAM & Tag2Text (open-vocabulary tagger)
 
 ```bash
 git clone https://github.com/xinyu1205/recognize-anything.git
@@ -133,10 +86,7 @@ pip install -r recognize-anything/requirements.txt
 pip install -e recognize-anything/
 ```
 
-
-
-#### Step 8 – Optional utilities
-
+#### Step 6 – Optional utilities
 
 ```bash
 pip install opencv-python pycocotools matplotlib onnxruntime onnx ipykernel
@@ -144,10 +94,7 @@ pip install opencv-python pycocotools matplotlib onnxruntime onnx ipykernel
 
 > These are needed for COCO-format mask export, ONNX export, and Jupyter notebooks.
 
-
-
-#### Step 9 – Download pretrained weights (place inside `Grounded-Segment-Anything`)
-
+#### Step 7 – Download pretrained weights (place inside `Grounded-Segment-Anything`)
 
 ```bash
 cd Grounded-Segment-Anything
@@ -159,17 +106,18 @@ wget https://github.com/IDEA-Research/GroundingDINO/releases/download/v0.1.0-alp
 wget https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth
 ```
 
-
-
-#### Step 10 – Download BERT backbone (for text embeddings) <-- Download Within the Grounded Segment Anything Repo
+#### Step 8 – Download BERT backbone (for text embeddings) <-- Download Within the Grounded Segment Anything Repo
 
 
 ```bash
 git clone https://huggingface.co/google-bert/bert-base-uncased
 ```
+
+</details>
+
 ---
 
-### 1.4 Known Bugs (With the assumption of successfull installation of all dependecies)
+### 1.2 Known Bugs (With the assumption of successfull installation of all dependecies)
 
 1. If you encounter a module error regarding segment_anything, please add a `__init__.py` file inside the directory of ./Grounded-Segment-Anything/segment_anything with the following:
 
