@@ -1,42 +1,190 @@
 # EgoLoc: Zero-Shot Temporal Interaction Localization for Egocentric Videos
 
-Authors: [Erhang Zhang#](https://scholar.google.com/citations?user=j1mUqHEAAAAJ&hl=en), [Junyi Ma#](https://github.com/BIT-MJY), [Yin-Dong Zheng](https://dblp.org/pid/249/8371.html), [Yixuan Zhou](https://ieeexplore.ieee.org/author/37089460430), [Hesheng Wang*](https://scholar.google.com/citations?user=q6AY9XsAAAAJ&hl)
+**Authors**: [Erhang Zhang#](https://scholar.google.com/citations?user=j1mUqHEAAAAJ&hl=en), [Junyi Ma#](https://github.com/BIT-MJY), [Yin-Dong Zheng](https://dblp.org/pid/249/8371.html), [Yixuan Zhou](https://ieeexplore.ieee.org/author/37089460430), [Hesheng Wang\*](https://scholar.google.com/citations?user=q6AY9XsAAAAJ&hl)
 
 <div align="center">
  <img src="demo.gif" alt="demo" width="70%" />
 </div>
 
+---
 
-EgoLoc is a VLM-based paradigm to localize **the hand-object contact/separation timestamps** for egocentric videos in a zero-shot manner. We therefore extend the coarse *temporal action localization (TAL)* to finer-grained *temporal interaction localization (TIL)*. [Our paper](https://arxiv.org/abs/2506.03662) has been accepted by IROS 2025.
+**EgoLoc** is a vision-language model (VLM)-based framework that localizes **hand-object contact and separation timestamps** in egocentric videos in a **zero-shot** manner. Our approach extends the traditional scope of *temporal action localization (TAL)* to a finer level, which we define as *temporal interaction localization (TIL)*.
+📄 [Read our paper](https://arxiv.org/abs/2506.03662) – accepted at **IROS 2025**.
 
 <div align="center">
  <h3>
  from <font color="blue">[🧭TAL]</font> to <font color="red">[🎯TIL]</font>
  </h3>
-
  <img src="TAL_TIL.png" alt="TAL to TIL Diagram" width="70%" />
 </div>
 
-## 1. How to Use
+---
 
-We provide two demos from the [EgoPAT3D-DT dataset](https://github.com/oppo-us-research/USST) for quick use.
+## 1. Getting Started
 
-### 1.1 Install Dependencies 
+We provide two demo videos from the [EgoPAT3D-DT dataset](https://github.com/oppo-us-research/USST) for quick experimentation.
 
-Please install the dependencies of GroundedSAM following [this repo](https://github.com/IDEA-Research/Grounded-Segment-Anything). In this repo, we will show how to obtain 2D hand velocities to extract keyframes for temporal interaction localization. 
+---
+
+### 1.1 Environment setup & dependency installation 🚀
+
+<details>
+<summary><strong>TL;DR</strong> (one-liner)</summary>
+
+```bash
+conda create -n egoloc python=3.10 -y && conda activate egoloc && \
+git clone https://github.com/IRMVLab/EgoLoc.git && cd EgoLoc && \
+pip install -r requirements.txt
+```
+
+</details>
+
+If you prefer to see the exact commands, read on ⬇️
+
+
+
+#### Step 0 (Optional) – Create a clean virtual env
+
+
+```bash
+conda create -n egoloc python=3.10 -y      # or python 3.9
+conda activate egoloc
+```
+
+
+
+#### Step 1 – Clone the main repo
+
 
 ```bash
 git clone https://github.com/IRMVLab/EgoLoc.git
 cd EgoLoc
-pip install -r requirements.txt
-
-git clone https://github.com/IDEA-Research/Grounded-Segment-Anything
-# Please install the dependencies of GroundedSAM
 ```
 
-### 1.2 Run EgoLoc
 
-We provide two example videos to show how our 2D-version EgoLoc works in a closed-loop manner. For quick use, please run:
+
+#### Step 2 – Install core Python requirements
+
+
+```bash
+pip install -r requirements.txt
+```
+
+
+
+#### Step 3 – Clone Grounded-SAM (with submodules)
+
+
+```bash
+git clone --recursive https://github.com/IDEA-Research/Grounded-Segment-Anything.git
+```
+
+If you plan to use **CUDA** (recommended for speed) *outside* Docker, set:
+
+
+```bash
+export AM_I_DOCKER=False
+export BUILD_WITH_CUDA=True          # ensures CUDA kernels are compiled
+```
+
+
+
+#### Step 4 – Build Grounded-SAM components
+
+
+```bash
+# 4-A  Segment Anything (SAM)
+python -m pip install -e Grounded-Segment-Anything/segment_anything
+
+# 4-B  Grounding DINO
+pip install --no-build-isolation -e Grounded-Segment-Anything/GroundingDINO
+```
+
+
+
+#### Step 5 – Vision-language extras
+
+
+```bash
+# Diffusers (for prompt-based image generation; optional but handy)
+pip install --upgrade 'diffusers[torch]'
+```
+
+
+
+#### Step 6 – OSX module (object-centric cross-attention)
+
+
+```bash
+git submodule update --init --recursive
+cd Grounded-Segment-Anything/grounded-sam-osx
+bash install.sh          # compiles custom ops
+cd ../..                 # return to project root
+```
+
+
+
+#### Step 7 – RAM & Tag2Text (open-vocabulary tagger)
+
+
+```bash
+git clone https://github.com/xinyu1205/recognize-anything.git
+pip install -r recognize-anything/requirements.txt
+pip install -e recognize-anything/
+```
+
+
+
+#### Step 8 – Optional utilities
+
+
+```bash
+pip install opencv-python pycocotools matplotlib onnxruntime onnx ipykernel
+```
+
+> These are needed for COCO-format mask export, ONNX export, and Jupyter notebooks.
+
+
+
+#### Step 9 – Download pretrained weights (place inside `Grounded-Segment-Anything`)
+
+
+```bash
+cd Grounded-Segment-Anything
+
+# Grounding DINO (Swin-T, object-grounded captions)
+wget https://github.com/IDEA-Research/GroundingDINO/releases/download/v0.1.0-alpha/groundingdino_swint_ogc.pth
+
+# Segment Anything (ViT-H)
+wget https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth
+```
+
+
+
+#### Step 10 – Download BERT backbone (for text embeddings) <-- Download Within the Grounded Segment Anything Repo
+
+
+```bash
+git clone https://huggingface.co/google-bert/bert-base-uncased
+```
+---
+
+### 1.4 Known Bugs (With the assumption of successfull installation of all dependecies)
+
+1. If you encounter a module error regarding segment_anything, please add a `__init__.py` file inside the directory of ./Grounded-Segment-Anything/segment_anything with the following:
+
+```python
+from .segment_anything import SamPredictor, sam_model_registry
+```
+
+If you encounter a bug, please do not hesitate to make a PR.
+
+---
+
+### 2. Running EgoLoc
+
+We provide two example videos to demonstrate how our 2D version of EgoLoc performs in a **closed-loop** setup.
+To run the demo:
 
 ```bash
 python egoloc_2D_demo.py \
@@ -55,59 +203,64 @@ python egoloc_2D_demo.py \
   --grid_size 3 \
   --max_feedbacks 1
 ```
-The output TIL results are saved in `output` folder.
 
-| Video                | Contact                          | Separation                        |
-|----------------------|----------------------------------|-----------------------------------|
-| **video1** | <img src="output/video1_contact_frame.png" width="200" style="padding: 0; border: none;" /> | <img src="output/video1_separation_frame.png" width="200" style="padding: 0; border: none;" /> |
-| **video2** | <img src="output/video2_contact_frame.png" width="200" style="padding: 0; border: none;" /> | <img src="output/video2_separation_frame.png" width="200" style="padding: 0; border: none;" /> |
+The temporal interaction localization results will be saved in the `output` directory.
 
-Note that EgoLoc may output slightly different TIL results for different runs due to the inherent randomness in VLM-based reasoning.
+| Video      | Contact Frame                                             | Separation Frame                                             |
+| ---------- | --------------------------------------------------------- | ------------------------------------------------------------ |
+| **video1** | <img src="output/video1_contact_frame.png" width="200" /> | <img src="output/video1_separation_frame.png" width="200" /> |
+| **video2** | <img src="output/video2_contact_frame.png" width="200" /> | <img src="output/video2_separation_frame.png" width="200" /> |
 
+> **Note**: Due to inherent randomness in VLM-based reasoning, EgoLoc may produce slightly different results on different runs.
 
+---
 
-### 1.3 Configurations
+### 3. Configuration Parameters
 
-Here are some key params to run the code. For some configs related to files from GroundedSAM, please refer to the [original repo](https://github.com/IDEA-Research/Grounded-Segment-Anything).
+Here are some key arguments you can adjust when running EgoLoc.
+For file paths related to GroundedSAM, please refer to its [original repository](https://github.com/IDEA-Research/Grounded-Segment-Anything).
 
-* **video_path**: Path to the target HOI video
+* **video\_path**: Path to the input egocentric video
+* **output\_dir**: Directory to save the output frames and results
+* **text\_prompt**: Prompt used for hand grounding (e.g., `"hand"`)
+* **box\_threshold**: Threshold for hand box grounding confidence
+* **grid\_size**: Grid size for image tiling used in VLM prompts
+* **max\_feedbacks**: Number of feedback iterations
+* **credentials**: File containing your OpenAI API key
 
-* **output_dir**: Path to the output folder
+---
 
-* **text_prompt**: Prompt for hand grounding
+We plan to release a full version of EgoLoc and additional benchmarks soon.
+In the future, we will also show:
 
-* **box_threshold**: Hand grounding threshold
+* How to integrate EgoLoc with state-of-the-art hand motion forecasting frameworks like [MMTwin](https://github.com/IRMVLab/MMTwin)
+* How to deploy EgoLoc in robotic manipulation tasks
 
-* **grid_size**: Size of the image grid that acts as the visual prompt for VLM-based localization
+But for now, feel free to explore the demos — and try it out on your own videos!
 
-* **max_feedbacks**: Times of feedback
+---
 
-* **credentials**: File with openai api key
+## 4. Citation
 
+🙏 If you find EgoLoc useful in your research, please consider citing:
 
-We will release the full-blood version and new benchmarks after we evolve EgoLoc to a more powerful solution. Moreover, we will present how to integrate EgoLoc on the SOTA hand motion forecasting paradigm such as [MMTwin](https://github.com/IRMVLab/MMTwin), and how to deploy it on robot manipulation tasks. But for now, enjoy the demos here and also try your own videos! 😎
-
-## 2. Citation
-
-🤝 If our work is helpful to your research, we would appreciate a citation to our paper:
-
-```
+```bibtex
 @article{zhang2025zero,
- title={Zero-Shot Temporal Interaction Localization for Egocentric Videos},
- author={Zhang, Erhang and Ma, Junyi and Zheng, Yin-Dong and Zhou, Yixuan and Wang, Hesheng},
- journal={arXiv preprint arXiv:2506.03662},
- year={2025}
+  title={Zero-Shot Temporal Interaction Localization for Egocentric Videos},
+  author={Zhang, Erhang and Ma, Junyi and Zheng, Yin-Dong and Zhou, Yixuan and Wang, Hesheng},
+  journal={arXiv preprint arXiv:2506.03662},
+  year={2025}
 }
 ```
 
-## 3. TODO
+---
 
-- [ ] Integrate 3D hand motion analysis (in two weeks)
-- [ ] Support ling untrimmed videos (before the start of IROS 2025)
-- [ ] Streamline a more efficient feedback scheme (before the start of IROS 2025)
+## 5. Our Future Roadmap
 
-Your patience is greatly appreciated.
+* [ ] Add support for **3D hand motion analysis** *(within 2 weeks)*
+* [ ] Extend to **long untrimmed videos** *(before IROS 2025)*
+* [ ] Improve efficiency of the **feedback loop mechanism** *(before IROS 2025)*
 
+---
 
-
-
+**We appreciate your interest and patience!**
