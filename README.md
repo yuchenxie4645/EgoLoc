@@ -255,10 +255,12 @@ But for now, feel free to explore the demos — and try it out on your own video
 
 ---
 
-## 5. TODO
+## 5. Our Future Roadmap
 
 * [ ] Add support for **3D hand motion analysis** *(within 2 weeks)*
 * [ ] Extend to **long untrimmed videos** *(before IROS 2025)*
 * [ ] Improve efficiency of the **feedback loop mechanism** *(before IROS 2025)*
 
-We appreciate your interest and patience!
+---
+
+**We appreciate your interest and patience!**
