@@ -214,3 +214,9 @@ But for now, feel free to explore the demos — and try it out on your own video
 ---
 
 **We appreciate your interest and patience!**
+
+## 6. License
+
+Copyright 2023, Junyi Ma, Guangming Xiong, Jingyi Xu, Xieyuanli Chen, Beijing Institute of Technology.
+
+This project is free software made available under the MIT License. For more details see the LICENSE file.
