@@ -9,6 +9,7 @@
 ---
 
 **EgoLoc** is a vision-language model (VLM)-based framework that localizes **hand-object contact and separation timestamps** in egocentric videos in a **zero-shot** manner. Our approach extends the traditional scope of *temporal action localization (TAL)* to a finer level, which we define as *temporal interaction localization (TIL)*.
+
 📄 [Read our paper](https://arxiv.org/abs/2506.03662) – accepted at **IROS 2025**.
 
 <div align="center">
