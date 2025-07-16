@@ -122,16 +122,16 @@ git clone https://huggingface.co/google-bert/bert-base-uncased
 
 ### 1.2 EgoLoc 3D Demo
 
-**EgoLoc-3D** augments our 2-D pipeline with monocular depth and full-body pose to recover the **3-D wrist trajectory** and detect interaction moments even in cluttered scenes.
+**EgoLoc-3D** augments our 2D pipeline with monocular depth and full-body pose to recover the **3D wrist trajectory** and detect interaction moments even in cluttered scenes.
 
 **How it works**  
 1. **Depth** – we run [Video-Depth-Anything](https://github.com/DepthAnything/Video-Depth-Anything) once to predict an inverse-depth map for every frame of the RGB video.  
 2. **Pose** – the wrist is tracked by [ViTPose](https://github.com/ViTAE-Transformer/ViTPose.git) shipped with [HaMeR](https://github.com/geopavlakos/HaMeR).  
-3. **3-D speed** – combining depth with keypoints yields a metric 3-D position per frame; a smoothed speed curve automatically pin-points the first **contact** and last **separation** frame.  
+3. **3D speed** – combining depth with keypoints yields a metric 3D position per frame; a smoothed speed curve automatically pin-points the first **contact** and last **separation** frame.  
 4. **VLM refinement** – with an OpenAI key the demo can ask GPT-4(o) to refine both frames for up to `--max_feedbacks` iterations.
 
 <details>
-<summary><strong>Quick installation (extra steps for the 3-D demo)</strong></summary>
+<summary><strong>Quick installation (extra steps for the 3D demo)</strong></summary>
 
 ```bash
 # ---- inside the EgoLoc root --------------------------------------------------
@@ -149,7 +149,7 @@ pip install opencv-python matplotlib scipy tqdm
 
 </details>
 
-Run the 3-D demo:
+Run the 3D demo:
 
 ```bash
 python egoloc_3D_demo.py \
@@ -160,7 +160,7 @@ python egoloc_3D_demo.py \
   --max_feedbacks 1  # 0 disables GPT-4 refinement, >= 1 for number of feedbacks and refinements
 ```
 
-> Note: the 3D demo is still under developmental phase, if any bugs are spotted please do not hesitate to make a PR. 
+> Note: the VDA-based 3D demo is still under developmental phase, if any bugs are spotted please do not hesitate to make a PR. 
 
 ---
 
