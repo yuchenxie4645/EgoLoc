@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage  # connected‑component helper
 from scipy.ndimage import gaussian_filter1d
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Any
 
 try:
     import torch
@@ -160,7 +160,7 @@ def extract_json_part(text_output: str) -> Optional[str]:
         print("Text received:", text_output)
         return None
 
-def scene_understanding(credentials: dict, frame: np.ndarray, prompt: str, *, flag: Optional[str] = None, raw: bool = False):
+def scene_understanding(credentials: Dict[str, Any], frame: np.ndarray, prompt: str, *, flag: Optional[str] = None, raw: bool = False):
     """
     Vision-language helper.
 
@@ -341,7 +341,7 @@ def select_top_n_frames_from_json(json_path: str, n: int, frame_index: Optional[
     return inval, top
 
 
-def select_frames_near_average(indices: list[int], grid_size: int, total_frames: int, invalid: list[int], min_index: Optional[int] = None):
+def select_frames_near_average(indices: List[int], grid_size: int, total_frames: int, invalid: List[int], min_index: Optional[int] = None):
     """Return *grid_size²* unique frames centred on average of *indices*."""
     avg = round(np.mean(indices))
     used = []
@@ -362,7 +362,7 @@ def select_frames_near_average(indices: list[int], grid_size: int, total_frames:
     return used[: grid_size**2]
 
 
-def select_and_filter_keyframes_with_anchor(sel: list[int], total_idx: list[int], grid_size: int, anchor: str, video_path: str):
+def select_and_filter_keyframes_with_anchor(sel: List[int], total_idx: List[int], grid_size: int, anchor: str, video_path: str):
     """Keep frames in first/second half depending on *anchor* ('start'/'end')."""
     cap = cv2.VideoCapture(video_path)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -658,7 +658,7 @@ def _pixel_to_camera(u: float, v: float, z: float, W: int, H: int):
 # HaMeR / ViTPose – created once, reused
 # ---------------------------------------------------------------------------
 
-_HAMER_CACHE: dict[str, ViTPoseModel] = {}
+_HAMER_CACHE: Dict[str, ViTPoseModel] = {}
 
 
 def _get_vitpose_model(device: str = "cuda") -> ViTPoseModel:
@@ -730,7 +730,7 @@ def _wrist_from_frame(frame_bgr: np.ndarray, gray_depth: np.ndarray, cpm: ViTPos
 
 
 def contact_separation_from_speed(
-    speed_dict: dict[int, float], *, min_speed_ratio=0.2, sigma=3
+    speed_dict: Dict[int, float], *, min_speed_ratio=0.2, sigma=3
 ):
     """Return (first_contact_idx, last_separation_idx) based on smoothed speed."""
     speeds = gaussian_filter1d(np.array(list(speed_dict.values())), sigma)
@@ -747,7 +747,7 @@ def contact_separation_from_speed(
     return contact, separation
 
 
-def refine_with_vlm(current_idx: int, creds: dict, video_path: str, prompt: str) -> int:
+def refine_with_vlm(current_idx: int, creds: Dict[str, Any], video_path: str, prompt: str) -> int:
     """Ask GPT‑4(o) to confirm or shift the key frame.  Fall back to `current_idx`."""
     cap = cv2.VideoCapture(video_path)
     cap.set(cv2.CAP_PROP_POS_FRAMES, current_idx)
@@ -790,7 +790,7 @@ def extract_3d_speed_and_visualize(video_path: str, output_dir: str, *, device: 
         raise RuntimeError("Could not open RGB video.")
 
     total_frames = int(cap_rgb.get(cv2.CAP_PROP_FRAME_COUNT))
-    speed_dict: dict[int, float] = {}
+    speed_dict: Dict[int, float] = {}
     prev_xyz = None
 
     for idx in range(total_frames):
@@ -850,7 +850,7 @@ def extract_3d_speed_and_visualize(video_path: str, output_dir: str, *, device: 
 # Video Convert
 # ---------------------------------------------------------------------------
 
-def convert_video(video_path: str, action: str, credentials: dict, grid_size: int, speed_folder: str, max_feedbacks: int = MAX_FEEDBACKS, repeat_times: int = 3):
+def convert_video(video_path: str, action: str, credentials: Dict[str, Any], grid_size: int, speed_folder: str, max_feedbacks: int = MAX_FEEDBACKS, repeat_times: int = 3):
     """Driver wrapper (identical logic to 2-D)."""
     cap = cv2.VideoCapture(video_path)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
