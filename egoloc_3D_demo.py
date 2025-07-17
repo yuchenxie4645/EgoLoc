@@ -668,9 +668,8 @@ def _get_vitpose_model(device: str = "cuda") -> ViTPoseModel:
 
     import hamer.vitpose_model as _vpm  # local import avoids side‑effects if unused
 
-    _hamer_root = Path(hamer.__file__).resolve().parent.parent
-    _vpm.ROOT_DIR = str(_hamer_root)
-    _vpm.VIT_DIR = str(_hamer_root / "third-party" / "ViTPose")
+    _vpm.ROOT_DIR = "./hamer"
+    _vpm.VIT_DIR =  "./hamer/third-party/ViTPose"
 
     cfg_rel = Path(
         "configs/wholebody/2d_kpt_sview_rgb_img/topdown_heatmap/coco-wholebody/"
