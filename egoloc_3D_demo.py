@@ -45,7 +45,7 @@ except ImportError as e:
     ) from e
 
 try:
-    from hammer.vitpose_model import ViTPoseModel  # type: ignore
+    from hamer.vitpose_model import ViTPoseModel  # type: ignore
 except ImportError as e:
     raise ImportError(
         "vitpose_model.py not found.  It ships with HaMeR; "
@@ -666,7 +666,7 @@ def _get_vitpose_model(device: str = "cuda") -> ViTPoseModel:
     if "cpm" in _HAMER_CACHE:
         return _HAMER_CACHE["cpm"]
 
-    import hammer.vitpose_model as _vpm  # local import avoids side‑effects if unused
+    import hamer.vitpose_model as _vpm  # local import avoids side‑effects if unused
 
     _hamer_root = Path(hamer.__file__).resolve().parent.parent
     _vpm.ROOT_DIR = str(_hamer_root)
