@@ -155,7 +155,7 @@ from .segment_anything import SamPredictor, sam_model_registry
 If you encounter a bug, please do not hesitate to make a PR.
 
 ---
-## 2 Running EgoLoc
+## 2. Running EgoLoc
 
 > We provide 2 demos for you to test out. 
 
