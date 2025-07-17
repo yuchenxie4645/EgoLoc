@@ -195,19 +195,26 @@ The temporal interaction localization results will be saved in the `output` dire
 
 ### 2.2 Running EgoLoc-3D (RGB Video + Auto Synthetically Generated Depths Tensor)
 
-We provide 1 example video to demonstrate our 3D version of EgoLoc performs in a **closed-loop** setup.
+We provide 1 example video to demonstrate our 3D version of EgoLoc performs in a **closed-loop** setup. [VDA](https://github.com/DepthAnything/Video-Depth-Anything.git) is used here to synthesize pseudo depth observations, eliminating the reliance on RGB-D cameras.
 To run the demo:
 ```bash
 python egoloc_3D_demo.py \
-          --video_path video3.mp4 \       # Video location
-          --output_dir output \           # Output Directory -- Auto creates directory if non-existent.
-          --device cuda \                 # CUDA for GPU Accelerated Systems
-          --credentials auth.env \        # OpenAI key
-          --encoder vits \                # change to vitl for larger model
-          --grid_size 3                   # Grid size
+          --video_path video3.mp4 \
+          --output_dir output \
+          --device cuda \
+          --credentials auth.env \
+          --encoder vits \
+          --grid_size 3
 ```
 
 The temporal interaction localization results will be saved in the `output` directory. 
+
+
+| Video      | Pseudo Depth  | Contact Frame    | Separation Frame      |
+| ---------- | --------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------ |
+| **video3** | <img src="demo.gif" alt="demo" width="200" /> | <img src="output/video3_contact_frame.png" width="200" /> | <img src="output/video3_separation_frame.png" width="200" /> |
+
+
 
 > **Note**: Due to inherent randomness in VLM-based reasoning, EgoLoc may produce slightly different results on different runs.
 
