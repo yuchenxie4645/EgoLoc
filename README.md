@@ -157,11 +157,11 @@ If you encounter a bug, please do not hesitate to make a PR.
 ---
 ## 2. Running EgoLoc
 
-> We provide 2 demos for you to test out. 
+> We provide both 2D and 3D demos for you to test out. 
 
 ### 2.1 Running EgoLoc-2D (RGB Video Only)
 
-We provide two example videos to demonstrate how our 2D version of EgoLoc performs in a **closed-loop** setup.
+We provide several example videos to demonstrate how our 2D version of EgoLoc performs in a **closed-loop** setup.
 To run the demo:
 
 ```bash
@@ -195,7 +195,7 @@ The temporal interaction localization results will be saved in the `output` dire
 
 ### 2.2 Running EgoLoc-3D (RGB Video + Auto Synthetically Generated Depths)
 
-We provide 1 example video to demonstrate our 3D version of EgoLoc performs in a **closed-loop** setup. [VDA](https://github.com/DepthAnything/Video-Depth-Anything.git) is used here to synthesize pseudo depth observations, eliminating the reliance on RGB-D cameras for more flexible applications.
+We also provide our newest 3D version of EgoLoc, which uses 3D hand velocities for adaptive sampling. [VDA](https://github.com/DepthAnything/Video-Depth-Anything.git) is used here to synthesize pseudo depth observations, eliminating the reliance on RGB-D cameras for more flexible applications.
 To run the demo:
 ```bash
 python egoloc_3D_demo.py \
