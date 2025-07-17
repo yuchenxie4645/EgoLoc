@@ -159,7 +159,7 @@ If you encounter a bug, please do not hesitate to make a PR.
 
 > We provide 2 demos for you to test out. 
 
-### 2.1 Running EgoLoc-2D (RGB Video + Non-Synthetic Depths Data)
+### 2.1 Running EgoLoc-2D (RGB Video Only)
 
 We provide two example videos to demonstrate how our 2D version of EgoLoc performs in a **closed-loop** setup.
 To run the demo:
@@ -262,7 +262,7 @@ But for now, feel free to explore the demos — and try it out on your own video
 
 ## 5. Our Future Roadmap
 
-* [ ] Add support for **3D hand motion analysis** *(within 2 weeks)*
+* [x] Add support for **3D hand motion analysis** *(within 2 weeks)*
 * [ ] Extend to **long untrimmed videos** *(before IROS 2025)*
 * [ ] Improve efficiency of the **feedback loop mechanism** *(before IROS 2025)*
 
