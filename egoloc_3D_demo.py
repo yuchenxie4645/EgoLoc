@@ -27,6 +27,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage  # connected‑component helper
 from scipy.ndimage import gaussian_filter1d
+from typing import List, Dict, Tuple, Optional
 
 try:
     import torch
@@ -147,7 +148,7 @@ def image_resize_for_vlm(frame, inter=cv2.INTER_AREA):
 # --------------------------------------------------------------------------
 
 
-def extract_json_part(text_output: str) -> str | None:
+def extract_json_part(text_output: str) -> Optional[str]:
     """Extract the JSON fragment {"points":[...]} from GPT text output."""
     text = text_output.strip().replace(" ", "").replace("\n", "")
     try:
@@ -159,15 +160,7 @@ def extract_json_part(text_output: str) -> str | None:
         print("Text received:", text_output)
         return None
 
-
-def scene_understanding(
-    credentials: dict,
-    frame: np.ndarray,
-    prompt: str,
-    *,
-    flag: str | None = None,
-    raw: bool = False,
-):
+def scene_understanding(credentials: dict, frame: np.ndarray, prompt: str, *, flag: Optional[str] = None, raw: bool = False):
     """
     Vision-language helper.
 
@@ -252,9 +245,7 @@ def scene_understanding(
 # --------------------------------------------------------------------------
 
 
-def create_frame_grid_with_keyframe(
-    video_path: str, frame_indices: list[int], grid_size: int
-) -> np.ndarray:
+def create_frame_grid_with_keyframe(video_path: str, frame_indices: List[int], grid_size: int) -> np.ndarray:
     """Return a numbered frame grid (BGR uint8)."""
     spacer = 0
     cap = cv2.VideoCapture(video_path)
@@ -303,13 +294,7 @@ def create_frame_grid_with_keyframe(
     return grid
 
 
-def select_top_n_frames_from_json(
-    json_path: str,
-    n: int,
-    frame_index: int | None = None,
-    flag: str | None = None,
-    receive_flag: str | None = None,
-):
+def select_top_n_frames_from_json(json_path: str, n: int, frame_index: Optional[int] = None, flag: Optional[str] = None, receive_flag: Optional[str] = None):
     """Return indices with lowest speed; behaviour altered by *flag*."""
     with open(json_path, "r") as f:
         data = json.load(f)
@@ -356,13 +341,7 @@ def select_top_n_frames_from_json(
     return inval, top
 
 
-def select_frames_near_average(
-    indices: list[int],
-    grid_size: int,
-    total_frames: int,
-    invalid: list[int],
-    min_index: int | None = None,
-):
+def select_frames_near_average(indices: list[int], grid_size: int, total_frames: int, invalid: list[int], min_index: Optional[int] = None):
     """Return *grid_size²* unique frames centred on average of *indices*."""
     avg = round(np.mean(indices))
     used = []
@@ -383,9 +362,7 @@ def select_frames_near_average(
     return used[: grid_size**2]
 
 
-def select_and_filter_keyframes_with_anchor(
-    sel: list[int], total_idx: list[int], grid_size: int, anchor: str, video_path: str
-):
+def select_and_filter_keyframes_with_anchor(sel: list[int], total_idx: list[int], grid_size: int, anchor: str, video_path: str):
     """Keep frames in first/second half depending on *anchor* ('start'/'end')."""
     cap = cv2.VideoCapture(video_path)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -413,17 +390,7 @@ def select_and_filter_keyframes_with_anchor(
 #             FEEDBACK + TASK-SELECTION (verbatim logic)
 # --------------------------------------------------------------------------
 
-
-def determine_by_state(
-    credentials,
-    video_path,
-    action,
-    grid_size,
-    total_frames,
-    frame_index,
-    anchor,
-    speed_folder,
-):
+def determine_by_state(credentials, video_path, action, grid_size, total_frames, frame_index, anchor, speed_folder):
     """Ask GPT-4o if *frame_index* is valid contact/separation."""
     prompt = (
         "I will show an image of hand-object interaction. "
@@ -452,16 +419,7 @@ def determine_by_state(
     )
 
 
-def determine_by_speed(
-    credentials,
-    video_path,
-    action,
-    grid_size,
-    total_frames,
-    frame_index,
-    anchor,
-    speed_folder,
-):
+def determine_by_speed(credentials, video_path, action, grid_size, total_frames, frame_index, anchor, speed_folder):
     """Reject frames whose speed exceeds 30-percentile threshold."""
     video_name = os.path.splitext(os.path.basename(video_path))[0]
     json_path = get_json_path(video_name, speed_folder)
@@ -498,17 +456,7 @@ def determine_by_speed(
     )
 
 
-def feedback_contact(
-    credentials,
-    video_path,
-    action,
-    grid_size,
-    total_frames,
-    frame_start,
-    max_fb,
-    anchor,
-    speed_folder,
-):
+def feedback_contact(credentials, video_path, action, grid_size, total_frames, frame_start, max_fb, anchor, speed_folder):
     cnt = 0
     cur = frame_start
     while cnt < max_fb:
@@ -544,17 +492,7 @@ def feedback_contact(
     return cur
 
 
-def feedback_separation(
-    credentials,
-    video_path,
-    action,
-    grid_size,
-    total_frames,
-    frame_end,
-    max_fb,
-    anchor,
-    speed_folder,
-):
+def feedback_separation(credentials, video_path, action, grid_size, total_frames, frame_end, max_fb, anchor, speed_folder):
     return feedback_contact(
         credentials,
         video_path,
@@ -568,17 +506,7 @@ def feedback_separation(
     )
 
 
-def process_task(
-    credentials,
-    video_path,
-    action,
-    grid_size,
-    total_frames,
-    anchor,
-    speed_folder,
-    frame_index=None,
-    flag=None,
-):
+def process_task(credentials, video_path, action, grid_size, total_frames, anchor, speed_folder, frame_index=None, flag=None):
     """Core routine that builds frame grid, asks GPT-4o for best frame."""
     prompt_start = (
         "I will show an image sequence of human cooking. "
@@ -661,14 +589,7 @@ def process_task(
 # Depth video generation via Video‑Depth‑Anything
 # ---------------------------------------------------------------------------
 
-
-def generate_depth_video_vda(
-    video_path: str,
-    depth_out_path: str,
-    *,
-    device: str = "cuda",
-    encoder: str = "vits",
-) -> Path:
+def generate_depth_video_vda(video_path: str, depth_out_path: str, *, device: str = "cuda", encoder: str = "vits") -> Path:
     """Run Video‑Depth‑Anything once and save the raw depth video."""
     video_path = Path(video_path).resolve()
     depth_out_path = Path(depth_out_path).resolve()
@@ -709,9 +630,7 @@ def generate_depth_video_vda(
 # ---------------------------------------------------------------------------
 
 
-def _load_depth(
-    depth_dir: Path, idx: int, scale_m: float = DEPTH_SCALE_M
-) -> np.ndarray | None:
+def _load_depth(depth_dir: Path, idx: int, scale_m: float = DEPTH_SCALE_M) -> Optional[np.ndarray]:
     """Read VDA’s inverse‑depth tensor for frame *idx* and convert to metres."""
     f = depth_dir / f"pred_depth_{idx:06d}.npy"
     if not f.exists():
@@ -846,13 +765,7 @@ def refine_with_vlm(current_idx: int, creds: dict, video_path: str, prompt: str)
 # ---------------------------------------------------------------------------
 
 
-def extract_3d_speed_and_visualize(
-    video_path: str,
-    output_dir: str,
-    *,
-    device: str = "cuda",
-    encoder: str = "vits",
-):
+def extract_3d_speed_and_visualize(video_path: str, output_dir: str, *, device: str = "cuda", encoder: str = "vits"):
     cpm = _get_vitpose_model(device)
 
     output_dir = Path(output_dir)
@@ -937,16 +850,7 @@ def extract_3d_speed_and_visualize(
 # Video Convert
 # ---------------------------------------------------------------------------
 
-
-def convert_video(
-    video_path: str,
-    action: str,
-    credentials: dict,
-    grid_size: int,
-    speed_folder: str,
-    max_feedbacks: int = MAX_FEEDBACKS,
-    repeat_times: int = 3,
-):
+def convert_video(video_path: str, action: str, credentials: dict, grid_size: int, speed_folder: str, max_feedbacks: int = MAX_FEEDBACKS, repeat_times: int = 3):
     """Driver wrapper (identical logic to 2-D)."""
     cap = cv2.VideoCapture(video_path)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -1008,8 +912,7 @@ def convert_video(
 # Tiny visual helper
 # ---------------------------------------------------------------------------
 
-
-def visualize_frame(video_path: str, idx: int, out_path: str, label: str | None = None):
+def visualize_frame(video_path: str, idx: int, out_path: str, label: Optional[str] = None):
     if idx < 0:
         return
     cap = cv2.VideoCapture(video_path)
