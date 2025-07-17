@@ -84,16 +84,16 @@ REPO_ROOT = next(
 )
 
 VDA_DIR = REPO_ROOT / "Video-Depth-Anything"
-VDA_CHECKPOINT_PATH = Path(
-    os.getenv(
-        "VDA_CHECKPOINT_PATH", VDA_DIR / "checkpoints" / "video_depth_anything_vits.pth"
-    )
-).resolve()
+# VDA_CHECKPOINT_PATH = Path(
+#     os.getenv(
+#         "VDA_CHECKPOINT_PATH", VDA_DIR / "checkpoints" / "video_depth_anything_vits.pth"
+#     )
+# ).resolve()
 
-if not VDA_CHECKPOINT_PATH.exists():
-    raise FileNotFoundError(
-        f"Video-Depth-Anything checkpoint not found at {VDA_CHECKPOINT_PATH}"
-    )
+# if not VDA_CHECKPOINT_PATH.exists():
+#     raise FileNotFoundError(
+#         f"Video-Depth-Anything checkpoint not found at {VDA_CHECKPOINT_PATH}"
+#     )
 
 DEPTH_SCALE_M = 3.0  # pixel value 255 ↔ 3 m (linear scaling)
 MAX_FEEDBACKS = 20
