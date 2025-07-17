@@ -19,7 +19,7 @@
  <img src="TAL_TIL.png" alt="TAL to TIL Diagram" width="70%" />
 </div>
 
-We greatly appreciate [Yuchen Xie](https://github.com/yuchenxie4645) for helping organize our repository.
+We greatly appreciate [Yuchen Xie](https://github.com/yuchenxie4645) for helping organize our repository and developing VDA-based version.
 
 ---
 
