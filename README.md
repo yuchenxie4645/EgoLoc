@@ -19,7 +19,7 @@
  <img src="TAL_TIL.png" alt="TAL to TIL Diagram" width="70%" />
 </div>
 
-We greatly appreciate [Yuchen Xie](https://github.com/yuchenxie4645) for helping organize our repository.
+We greatly appreciate [Yuchen Xie](https://github.com/yuchenxie4645) for helping organize our repository and developing VDA-based version.
 
 ---
 
@@ -157,11 +157,11 @@ If you encounter a bug, please do not hesitate to make a PR.
 ---
 ## 2. Running EgoLoc
 
-> We provide 2 demos for you to test out. 
+> We provide both 2D and 3D demos for you to test out. 
 
-### 2.1 Running EgoLoc-2D (RGB Video + Non-Synthetic Depths Data)
+### 2.1 Running EgoLoc-2D (RGB Video Only)
 
-We provide two example videos to demonstrate how our 2D version of EgoLoc performs in a **closed-loop** setup.
+We provide several example videos to demonstrate how our 2D version of EgoLoc performs in a **closed-loop** setup.
 To run the demo:
 
 ```bash
@@ -193,21 +193,28 @@ The temporal interaction localization results will be saved in the `output` dire
 
 ---
 
-### 2.2 Running EgoLoc-3D (RGB Video + Auto Synthetically Generated Depths Tensor)
+### 2.2 Running EgoLoc-3D (RGB Video + Auto Synthetically Generated Depths)
 
-We provide 1 example video to demonstrate our 3D version of EgoLoc performs in a **closed-loop** setup.
+We also provide our newest 3D version of EgoLoc, which uses 3D hand velocities for adaptive sampling. [VDA](https://github.com/DepthAnything/Video-Depth-Anything.git) is used here to synthesize pseudo depth observations, eliminating the reliance on RGB-D cameras for more flexible applications.
 To run the demo:
 ```bash
 python egoloc_3D_demo.py \
-          --video_path video3.mp4 \       # Video location
-          --output_dir output \           # Output Directory -- Auto creates directory if non-existent.
-          --device cuda \                 # CUDA for GPU Accelerated Systems
-          --credentials auth.env \        # OpenAI key
-          --encoder vits \                # change to vitl for larger model
-          --grid_size 3                   # Grid size
+          --video_path video3.mp4 \
+          --output_dir output \
+          --device cuda \
+          --credentials auth.env \
+          --encoder vits \
+          --grid_size 3
 ```
 
 The temporal interaction localization results will be saved in the `output` directory. 
+
+
+| Video      | Pseudo Depth  | Contact Frame    | Separation Frame      |
+| ---------- | --------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------ |
+| **video3** | <img src="output/video3_vis.gif" alt="demo" width="200" /> | <img src="output/video3_contact_frame.png" width="200" /> | <img src="output/video3_separation_frame.png" width="200" /> |
+
+
 
 > **Note**: Due to inherent randomness in VLM-based reasoning, EgoLoc may produce slightly different results on different runs.
 
@@ -255,7 +262,7 @@ But for now, feel free to explore the demos — and try it out on your own video
 
 ## 5. Our Future Roadmap
 
-* [ ] Add support for **3D hand motion analysis** *(within 2 weeks)*
+* [x] Add support for **3D hand motion analysis** *(within 2 weeks)*
 * [ ] Extend to **long untrimmed videos** *(before IROS 2025)*
 * [ ] Improve efficiency of the **feedback loop mechanism** *(before IROS 2025)*
 
