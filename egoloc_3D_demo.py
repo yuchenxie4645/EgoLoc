@@ -159,11 +159,6 @@ def image_resize_for_vlm(frame, inter=cv2.INTER_AREA):
             new_h = int(new_w / aspect)
     return cv2.resize(frame, (new_w, new_h), interpolation=inter)
 
-# ---------------------------------------------------------------------------
-# Save debug images
-# ---------------------------------------------------------------------------
-# [DEBUG REMOVED] _save_debug_images helper deleted
-
 # --------------------------------------------------------------------------
 #                     VISION–LANGUAGE MODEL WRAPPER
 # --------------------------------------------------------------------------
@@ -680,11 +675,9 @@ def _load_depth(depth_dir: Path, idx: int) -> Optional[np.ndarray]:
     if not f.exists():
         return None
     inv = np.load(f).astype(np.float32)          # (H, W)
-#   depth = inv
     if _is_invalid_inv(inv):                     # ← early-reject unusable tensor
         return None
     depth = DEPTH_SCALE_M / (inv + 1e-6)         # invert once, not twice
-#   depth = np.clip(depth, 0.0, DEPTH_SCALE_M)   # avoid wild tails
     return depth
 
 # ---------------------------------------------------------------------------
@@ -807,7 +800,6 @@ def register_hand_positions(pcd_root, hand3d_root, save_reg_root, threshold=0.03
                 odoms.append(np.eye(4))                                    # placeholder (unused)
                 if frame_id in hand3d:                                     # store original hand if exists
                     h0 = np.array(hand3d[frame_id])                        # camera-frame wrist point
-                    # h0[1] *= -1; h0[2] *= -1                             # ← flip not needed; do once later
                     reg_hand_dict[frame_id] = h0.tolist()                  # frame 1 becomes origin
             else:
                 if first_pcd is None:                                      # cache reference once
