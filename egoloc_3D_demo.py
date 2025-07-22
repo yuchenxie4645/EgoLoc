@@ -1001,6 +1001,30 @@ def extract_3d_speed_and_visualize(video_path: str, output_dir: str, *, device: 
     with open(reg_out_dir / f"{video_name}.json") as f:
         reg_hand = json.load(f)
 
+# ── compute world-frame speed ────────────────────────────────────────
+    speed_dict = {}
+    prev_xyz = None
+    for idx in range(total_frames):
+        xyz = reg_hand.get(str(idx+1))
+        if xyz is None:
+            _log_zero_speed(idx, "no wrist detected")
+            speed_dict[idx] = 0.0
+            prev_xyz = None
+            continue
+
+        if prev_xyz is None:
+            _log_zero_speed(
+                idx,
+                "initial frame" if idx == 0 else "first valid frame after gap",
+            )
+            speed = 0.0
+        else:
+            dx, dy, dz = np.array(xyz) - np.array(prev_xyz)
+            speed = float(np.linalg.norm([dx,dy,dz]))    # true world speed
+        prev_xyz = xyz
+        speed_dict[idx] = speed
+# --------------------------------------------------------------------
+
     speed_json_path = output_dir / f"{video_name}_speed.json"
     with open(speed_json_path, "w") as f:
         json.dump(speed_dict, f, indent=2)
