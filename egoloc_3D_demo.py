@@ -21,7 +21,6 @@ import time
 import warnings
 from pathlib import Path
 import open3d as o3d 
-# import matplotlib.cm as cm  # removed unused debug utilities
 
 import cv2
 import dotenv  # read .env creds for GPT-4o
@@ -91,16 +90,6 @@ REPO_ROOT = next(
 )
 
 VDA_DIR = REPO_ROOT / "Video-Depth-Anything"
-# VDA_CHECKPOINT_PATH = Path(
-#     os.getenv(
-#         "VDA_CHECKPOINT_PATH", VDA_DIR / "checkpoints" / "video_depth_anything_vits.pth"
-#     )
-# ).resolve()
-
-# if not VDA_CHECKPOINT_PATH.exists():
-#     raise FileNotFoundError(
-#         f"Video-Depth-Anything checkpoint not found at {VDA_CHECKPOINT_PATH}"
-#     )
 
 DEPTH_SCALE_M = 3.0  # pixel value 255 ↔ 3 m (linear scaling)
 MAX_FEEDBACKS = 1
@@ -812,7 +801,6 @@ def register_hand_positions(pcd_root, hand3d_root, save_reg_root, threshold=0.03
             frame_id = str(i + 1)                                          # JSON is 1-based indexing
             pcd = o3d.io.read_point_cloud(os.path.join(pcd_dir, ply))      # load current cloud
             pts = np.asarray(pcd.points)                                   # numpy view of XYZ
-#           pts[:, 1] *= -1; pts[:, 2] *= -1                               # camera-frame → world (flip Y,Z)
             pcd.points = o3d.utility.Vector3dVector(pts)                   # write back to Open3D cloud
 
             if i == 0:                                                     # first frame: no registration
@@ -836,7 +824,6 @@ def register_hand_positions(pcd_root, hand3d_root, save_reg_root, threshold=0.03
                 T = reg.transformation                                     # 4×4 rigid transform
 
                 h = np.array(hand3d.get(str(i + 1), [np.nan, np.nan, np.nan]))  # wrist in camera frame
-#               h[1] *= -1; h[2] *= -1                                     # flip Y,Z same as point clouds
                 h4 = np.append(h, 1)                                       # homogeneous coordinate
                 h_reg = (T @ h4)[:3].tolist()                              # apply ICP transform
                 if frame_id in hand3d:                                     # store if key exists
@@ -921,7 +908,7 @@ def extract_3d_speed_and_visualize(video_path: str, output_dir: str, *, device: 
         print("[3D‑Pipeline] Reusing cached depth outputs in", depth_dir)
     
     # ── depth quality check  +  auto-repair  ───────────────────────────────
-    max_repairs = 2          # keeps run-time bounded
+    max_repairs = 5          # keeps run-time bounded
     for attempt in range(max_repairs):
         bad_idx = _invalid_depth_indices(depth_dir)
         if not bad_idx:
@@ -1014,31 +1001,6 @@ def extract_3d_speed_and_visualize(video_path: str, output_dir: str, *, device: 
     with open(reg_out_dir / f"{video_name}.json") as f:
         reg_hand = json.load(f)
 
-    # # ── compute world-frame speed ────────────────────────────────────────
-    # speed_dict = {}
-    # prev_xyz = None
-    # for idx in range(total_frames):
-    #     xyz = reg_hand.get(str(idx+1))
-    #     if xyz is None:
-    #         _log_zero_speed(idx, "no wrist detected")
-    #         speed_dict[idx] = 0.0
-    #         prev_xyz = None
-    #         continue
-
-    #     if prev_xyz is None:
-    #         _log_zero_speed(
-    #             idx,
-    #             "initial frame" if idx == 0 else "first valid frame after gap",
-    #         )
-    #         speed = 0.0
-    #     else:
-    #         dx, dy, dz = np.array(xyz) - np.array(prev_xyz)
-    #         speed = float(np.linalg.norm([dx,dy,dz]))    # true world speed
-    #     prev_xyz = xyz
-    #     speed_dict[idx] = speed
-
-    # --------------------------------------------------------------------
-
     speed_json_path = output_dir / f"{video_name}_speed.json"
     with open(speed_json_path, "w") as f:
         json.dump(speed_dict, f, indent=2)
@@ -1051,8 +1013,6 @@ def extract_3d_speed_and_visualize(video_path: str, output_dir: str, *, device: 
     speed_vis_path = output_dir / f"{video_name}_speed_vis.png"
     plt.savefig(speed_vis_path)
     plt.close()
-
-    # Debug diagnostics removed – no per-frame breakdown persisted
 
     return speed_dict, str(speed_json_path), str(speed_vis_path), str(depth_vis_path)
 
