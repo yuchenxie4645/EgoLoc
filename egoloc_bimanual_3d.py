@@ -1,5 +1,5 @@
 """
-EgoLoc 3‑D Demo – *lite* edition
+EgoLoc-Plus 3‑D Demo – *bimanual* edition
 Assumed repo layout (relative to this file):
 EgoLoc/
 │
@@ -109,6 +109,19 @@ def count_bad_depth_tensors(depth_dir: Path) -> Tuple[int, int]:
 # Basic helpers
 def get_json_path(video_name: str, base_dir: str):
     return os.path.join(base_dir, f"{video_name}_speed.json")
+
+
+def get_json_path_for_hand(video_name: str, base_dir: str, hand: str) -> str:
+    """Return speed JSON path for a specific hand or combined.
+
+    hand ∈ {"right", "left", "either"}; "either" maps to the combined file.
+    """
+    hand = (hand or "either").lower()
+    if hand == "either":
+        return os.path.join(base_dir, f"{video_name}_speed.json")
+    if hand not in {"right", "left"}:
+        raise ValueError("hand must be one of: right, left, either")
+    return os.path.join(base_dir, f"{video_name}_speed_{hand}.json")
 
 
 #                           IMAGE HELPERS
@@ -223,11 +236,9 @@ def scene_understanding(credentials: Dict[str, Any], frame: np.ndarray, prompt: 
 
     content = result.choices[0].message.content
 
-    # ── raw-text mode ────────────────────────────────────────────
     if raw or flag is not None:
         return content
 
-    # ── JSON-parsing mode ───────────────────────────────────────
     frag = extract_json_part(content)
     if frag is None:
         return -1, content
@@ -330,14 +341,41 @@ def select_top_n_frames_from_json(json_path: str, n: int, frame_index: Optional[
                 if s != 0 and not math.isnan(s) and int(i) == frame_index
             ]
     top = [idx for idx, _ in sorted(valid, key=lambda x: x[1])[:n]]
+    # Fallback: if no valid frames found, use evenly spaced frames
+    if not top:
+        print(f"[WARNING] No valid speed data found in {json_path}, using fallback frames")
+        total_frames = len(items) if items else n
+        if total_frames > 0:
+            # Generate evenly spaced frame indices
+            step = max(1, total_frames // n)
+            top = list(range(0, min(total_frames, n * step), step))[:n]
+        else:
+            top = list(range(n))  # Last resort fallback
+    
     if receive_flag is None:
         return top
+    
+    # Handle inval for receive_flag case
+    if 'inval' not in locals():
+        inval = []
     return inval, top
 
 
 def select_frames_near_average(indices: List[int], grid_size: int, total_frames: int, invalid: List[int], min_index: Optional[int] = None):
     """Return *grid_size²* unique frames centred on average of *indices*."""
-    avg = round(np.mean(indices))
+
+    if not indices or len(indices) == 0:
+        avg = total_frames // 2
+    else:
+        mean_val = np.mean(indices)
+        if np.isnan(mean_val) or np.isinf(mean_val):
+            # Use middle of video as fallback
+            avg = total_frames // 2
+        else:
+            avg = round(mean_val)
+    
+    # Ensure avg is within valid range
+    avg = max(0, min(avg, total_frames - 1))
     used = []
     if avg not in invalid and (min_index is None or avg > min_index):
         used.append(avg)
@@ -384,18 +422,21 @@ def select_and_filter_keyframes_with_anchor(sel: List[int], total_idx: List[int]
 def determine_by_state(credentials, video_path, action, grid_size, total_frames, frame_index, anchor, speed_folder):
     """Ask GPT-4o if *frame_index* is valid contact/separation."""
     prompt = (
-        "I will show an image of hand-object interaction. "
-        "You need to help me determine whether the hand and the object "
-        "in the current image are in obvious contact "
+        (
+            "I will show an image of hand-object interaction. "
+            "You need to determine whether the hand and the object are in obvious contact. "
+        )
         if anchor == "start"
-        else "I will show an image of hand-object interaction. "
-        "You need to help me determine whether the hand and the object "
-        "are clearly separate. "
-    ) + "If yes, answer 1; if no, answer 0"
+        else (
+            "I will show an image of hand-object interaction. "
+            "You need to determine whether the hand and the object are clearly separate. "
+        )
+    ) + "Return only a single character: 1 for yes, 0 for no."
 
     grid = create_frame_grid_with_keyframe(video_path, [frame_index], 1)
     res = scene_understanding(credentials, grid, prompt, raw=True)
-    if res == "1" or frame_index > total_frames - 5:
+    s = str(res).strip()
+    if (s[:1] == "1") or frame_index > total_frames - 5:
         return frame_index
     return process_task(
         credentials,
@@ -410,10 +451,10 @@ def determine_by_state(credentials, video_path, action, grid_size, total_frames,
     )
 
 
-def determine_by_speed(credentials, video_path, action, grid_size, total_frames, frame_index, anchor, speed_folder):
+def determine_by_speed(credentials, video_path, action, grid_size, total_frames, frame_index, anchor, speed_folder, *, hand: str = "either"):
     """Reject frames whose speed exceeds 30-percentile threshold."""
     video_name = os.path.splitext(os.path.basename(video_path))[0]
-    json_path = get_json_path(video_name, speed_folder)
+    json_path = get_json_path_for_hand(video_name, speed_folder, hand)
     with open(json_path, "r") as f:
         data = json.load(f)
     valid = [(int(i), s) for i, s in data.items() if s != 0 and not math.isnan(s)]
@@ -444,10 +485,11 @@ def determine_by_speed(credentials, video_path, action, grid_size, total_frames,
         speed_folder,
         frame_index,
         flag="speed",
+        hand=hand,
     )
 
 
-def feedback_contact(credentials, video_path, action, grid_size, total_frames, frame_start, max_fb, anchor, speed_folder):
+def feedback_contact(credentials, video_path, action, grid_size, total_frames, frame_start, max_fb, anchor, speed_folder, *, hand: str = "either"):
     cnt = 0
     cur = frame_start
     while cnt < max_fb:
@@ -473,6 +515,7 @@ def feedback_contact(credentials, video_path, action, grid_size, total_frames, f
                 cur,
                 anchor,
                 speed_folder,
+                hand=hand,
             )
             if new_sp == cur:
                 return cur
@@ -483,7 +526,7 @@ def feedback_contact(credentials, video_path, action, grid_size, total_frames, f
     return cur
 
 
-def feedback_separation(credentials, video_path, action, grid_size, total_frames, frame_end, max_fb, anchor, speed_folder):
+def feedback_separation(credentials, video_path, action, grid_size, total_frames, frame_end, max_fb, anchor, speed_folder, *, hand: str = "either"):
     return feedback_contact(
         credentials,
         video_path,
@@ -494,31 +537,28 @@ def feedback_separation(credentials, video_path, action, grid_size, total_frames
         max_fb,
         anchor,
         speed_folder,
+        hand=hand,
     )
 
 
-def process_task(credentials, video_path, action, grid_size, total_frames, anchor, speed_folder, frame_index=None, flag=None):
+def process_task(credentials, video_path, action, grid_size, total_frames, anchor, speed_folder, frame_index=None, flag=None, *, hand: str = "either"):
     """Core routine that builds frame grid, asks GPT-4o for best frame."""
     prompt_start = (
-        "I will show an image sequence of human cooking. "
-        "Choose the number that is closest to the moment when the "
-        f"({action}) has started. "
-        "Give one-sentence analysis (<50 words). "
-        "If the action is absent choose -1. "
-        'Return JSON: {"points": []}'
+        "I will show an image grid of numbered frames showing a hand-object action. "
+        "Pick the number closest to when the action ({action}) STARTS. "
+        "If the action is absent, choose -1. "
+        'Return JSON strictly as {"points": [<number>]} with no extra text.'
     )
     prompt_end = (
-        "I will show an image sequence of human cooking. "
-        "Choose the number that is closest to the moment when the "
-        f"({action}) has ended. "
-        "Give one-sentence analysis (<50 words). "
-        "If the action has not ended choose -1. "
-        'Return JSON: {"points": []}'
+        "I will show an image grid of numbered frames showing a hand-object action. "
+        "Pick the number closest to when the action ({action}) ENDS. "
+        "If the action has not ended, choose -1. "
+        'Return JSON strictly as {"points": [<number>]} with no extra text.'
     )
     prompt = prompt_start if anchor == "start" else prompt_end
 
     video_name = os.path.splitext(os.path.basename(video_path))[0]
-    json_path = get_json_path(video_name, speed_folder)
+    json_path = get_json_path_for_hand(video_name, speed_folder, hand)
 
     if frame_index is None:
         top = select_top_n_frames_from_json(json_path, 4)
@@ -689,37 +729,72 @@ def _get_vitpose_model(device: str = "cuda") -> ViTPoseModel:
 
 
 # Wrist detection helper (depth‑guided + ViTPose)
-def _wrist_from_frame(frame_bgr: np.ndarray, gray_depth: np.ndarray, cpm: ViTPoseModel):
-    # 1) Depth‑based hand ROI – nearest object in view
-    nearest = gray_depth < np.percentile(gray_depth, 10)  # closest 25 %
+def _wrist_from_frame(
+    frame_bgr: np.ndarray,
+    gray_depth: np.ndarray,
+    cpm: ViTPoseModel,
+) -> Dict[str, Optional[Tuple[float, float]]]:
+    """
+    Detect both wrists (left & right).  
+    Returns: {"right": (u, v) | None, "left": (u, v) | None}
+    """
+    # 1) Depth-guided candidate ROIs – expand to the closest *15 %* of depth
+    #    pixels (empirically more tolerant when the hand is not the single
+    #    nearest object). If this still fails we will fall back to a global
+    #    ViTPose pass later.
+    nearest_pct = 15.0  # tweak here if needed (10 to 15 helps many cases)
+    nearest = gray_depth < np.percentile(gray_depth, nearest_pct)
     labels, n_lbl = ndimage.label(nearest)
     if n_lbl == 0:
-        return None
+        # no obvious near-depth blobs – let global fallback handle it
+        n_lbl = 0
 
-    # largest blob is hand / forearm
     sizes = ndimage.sum(nearest, labels, range(1, n_lbl + 1))
-    hand_lbl = 1 + int(np.argmax(sizes))
-    mask = labels == hand_lbl
-    ys, xs = np.where(mask)
-    y0, y1 = ys.min(), ys.max()
-    x0, x1 = xs.min(), xs.max()
+    blobs = 1 + np.argsort(sizes)[-2:]          # label IDs
 
-    roi_bgr = frame_bgr[y0 : y1 + 1, x0 : x1 + 1]
+    wrists = {"right": None, "left": None}
+    for lbl in blobs:
+        mask = labels == lbl
+        ys, xs = np.where(mask)
+        y0, y1 = ys.min(), ys.max()
+        x0, x1 = xs.min(), xs.max()
+        roi_bgr = frame_bgr[y0 : y1 + 1, x0 : x1 + 1]
 
-    # 2) ViTPose inside ROI
-    bbox = np.array(
-        [[0, 0, roi_bgr.shape[1] - 1, roi_bgr.shape[0] - 1, 1.0]], dtype=np.float32
-    )
-    pose = cpm.predict_pose(roi_bgr[:, :, ::-1], [bbox])[0]
+        bbox = np.array([[0, 0, roi_bgr.shape[1] - 1, roi_bgr.shape[0] - 1, 1.0]],
+                         dtype=np.float32)
+        pose = cpm.predict_pose(roi_bgr[:, :, ::-1], [bbox])[0]
+        kpts = pose["keypoints"]
+        kpts_l, kpts_r = kpts[-42:-21], kpts[-21:]
 
-    hand_kpts = pose["keypoints"][-21:]  # right-hand keypoints
-    valid = hand_kpts[:, 2] > 0.35
-    if valid.sum() <= 3:
-        return None
+        for tag, hk in (("left", kpts_l), ("right", kpts_r)):
+            # lowered confidence threshold to 0.25 (more tolerant)
+            valid = hk[:, 2] > 0.25
+            if valid.sum() <= 3:
+                continue
+            u = x0 + hk[0, 0]
+            v = y0 + hk[0, 1]
+            # if two candidates, keep the nearer one
+            if wrists[tag] is None or gray_depth[int(v), int(u)] < gray_depth[int(wrists[tag][1]), int(wrists[tag][0])]:
+                wrists[tag] = (float(u), float(v))
 
-    wrist_u = x0 + hand_kpts[0, 0]
-    wrist_v = y0 + hand_kpts[0, 1]
-    return float(wrist_u), float(wrist_v)
+    # 2) Fallback: if either wrist is still missing, run ViTPose on the
+    #    full frame. This is slower but guarantees at least one attempt.
+    if wrists["left"] is None or wrists["right"] is None:
+        full_bbox = np.array([[0, 0, frame_bgr.shape[1] - 1, frame_bgr.shape[0] - 1, 1.0]],
+                             dtype=np.float32)
+        pose_full = cpm.predict_pose(frame_bgr[:, :, ::-1], [full_bbox])[0]
+        kpts_full = pose_full["keypoints"]
+        kpts_l_full, kpts_r_full = kpts_full[-42:-21], kpts_full[-21:]
+
+        for tag, hk in (("left", kpts_l_full), ("right", kpts_r_full)):
+            if wrists[tag] is not None:
+                continue  # already found via depth-guided ROI
+            valid = hk[:, 2] > 0.25
+            if valid.sum() <= 3:
+                continue
+            u, v = hk[0, 0], hk[0, 1]
+            wrists[tag] = (float(u), float(v))
+    return wrists
 
 # Hand Position Registration With ICP and Frame 0 Alignment Helper
 def register_hand_positions(pcd_root, hand3d_root, save_reg_root, threshold=0.03):
@@ -792,7 +867,12 @@ def register_hand_positions(pcd_root, hand3d_root, save_reg_root, threshold=0.03
         print(f"Computed globally registered 3-D hand trajectory for {video}")
 
 # Robust percentile-flavoured detector
-def contact_separation_from_speed(speed_dict: Dict[int, float], *, active_pct: float = 30.0, sigma: int = 5) -> Tuple[int, int]:
+def contact_separation_from_speed(
+    speed_dict: Dict[int, float],
+    *,
+    active_pct: float = 30.0,     # % of frames considered “active”
+    sigma: int = 5
+) -> Tuple[int, int]:
     """
     Return first contact & last separation indices in a *very flat* speed curve.
 
@@ -827,11 +907,27 @@ def refine_with_vlm(current_idx: int, creds: Dict[str, Any], video_path: str, pr
     if not ok:
         return current_idx
 
-    new_idx = scene_understanding(creds, frame, prompt)
-    return current_idx if new_idx in (-1, None) else int(new_idx)
+    res = scene_understanding(creds, frame, prompt)
+    if isinstance(res, tuple):
+        choice, _ = res
+    else:
+        choice = res
+    try:
+        new_idx = int(choice)
+    except Exception:
+        return current_idx
+    return current_idx if new_idx in (-1, None) else new_idx
 
-# 3‑D hand‑speed extraction + visualisation
+# 3‑D hand‑speed extraction + visualisation (SIMPLIFIED VERSION)
 def extract_3d_speed_and_visualize(video_path: str, output_dir: str, *, device: str = "cuda", encoder: str = "vits"):
+    """
+    Bimanual 3‑D speed extraction with depth and ICP registration.
+    - Detect both wrists per frame (depth‑guided + ViTPose)
+    - Build coloured point clouds and register to frame 1 for global coords
+    - Save per‑hand speeds: <video>_speed_right.json and _left.json
+    - Save combined speed (max per frame): <video>_speed.json
+    - Emit separate speed plots for both hands and combined
+    """
     cpm = _get_vitpose_model(device)
 
     output_dir = Path(output_dir)
@@ -840,8 +936,8 @@ def extract_3d_speed_and_visualize(video_path: str, output_dir: str, *, device: 
 
     depth_dir = output_dir / "depth"
     depth_vis_path = depth_dir / "depth_vis.mp4"
-    undet_dir = output_dir / "undetected_frames"   # ← NEW
-
+    debug_dir = output_dir / "debug_frames"  # debug visualization
+    debug_dir.mkdir(parents=True, exist_ok=True)
 
     vda_ready = (depth_dir / "pred_depth_000000.npy").exists()
     if not depth_vis_path.exists() or not vda_ready:
@@ -851,24 +947,19 @@ def extract_3d_speed_and_visualize(video_path: str, output_dir: str, *, device: 
     else:
         print("[3D‑Pipeline] Reusing cached depth outputs in", depth_dir)
     
-    # ── depth quality check  +  auto-repair  ───────────────────────────────
     max_repairs = 5          # keeps run-time bounded
     for attempt in range(max_repairs):
         bad_idx = _invalid_depth_indices(depth_dir)
         if not bad_idx:
-            break                       # all good – continue with the pipeline
+            break
 
         pct = len(bad_idx) / len(list(depth_dir.glob("pred_depth_*.npy"))) * 100
         print(f"[depth] {len(bad_idx)} tensors invalid  ({pct:.1f} %) – repairing")
 
-        # 1) delete broken tensors
         _remove_depth_tensors(depth_dir, bad_idx)
-
-        # 2) re-run VDA once; idempotent unpacker will write only missing frames
-        generate_depth_video_vda(video_path, depth_dir,
-                                device=device, encoder=encoder)
+        generate_depth_video_vda(video_path, depth_dir, device=device, encoder=encoder)
     else:
-        raise RuntimeError("Depth repair failed after two attempts – aborting.")
+        raise RuntimeError("Depth repair failed after multiple attempts – aborting.")
 
     pcd_dir = output_dir / "pointclouds" / video_name
     if not (pcd_dir / "0.ply").exists():
@@ -886,98 +977,238 @@ def extract_3d_speed_and_visualize(video_path: str, output_dir: str, *, device: 
         raise RuntimeError("Could not open RGB video.")
 
     total_frames = int(cap_rgb.get(cv2.CAP_PROP_FRAME_COUNT))
-    speed_dict: Dict[int, float] = {}
-    prev_xyz = None
-    cam_hand: Dict[str, List[float]] = {} 
+    print(f"[3D‑Pipeline] Processing {total_frames} frames...")
+
+    # Track both hands and store camera coords for registration
+    speed_right: Dict[int, float] = {}
+    speed_left: Dict[int, float] = {}
+    prev_right_3d = None
+    prev_left_3d = None
+    right_detections = 0
+    left_detections = 0
+    total_frames_seen = 0
+    cam_hand_right: Dict[str, List[float]] = {}
+    cam_hand_left: Dict[str, List[float]] = {}
 
     for idx in range(total_frames):
         ok_rgb, frame_bgr = cap_rgb.read()
         if not ok_rgb:
-            speed_dict[idx] = 0.0
-            prev_xyz = None
+            speed_right[idx] = 0.0
             continue
 
         gray_depth = _load_depth(depth_dir, idx)
         if gray_depth is None:
-            speed_dict[idx] = 0.0
-            prev_xyz = None
+            speed_right[idx] = 0.0
             continue
 
-        H, W = gray_depth.shape  # restored after debug removal
+        H, W = gray_depth.shape
 
-        wrist = _wrist_from_frame(frame_bgr, gray_depth, cpm)
-        if wrist is None:
-            speed_dict[idx] = 0.0
-            prev_xyz = None
-            continue
+        # Detect both hands (for visualization) but only use right for speed
+        wrists = _wrist_from_frame(frame_bgr, gray_depth, cpm)
+        total_frames_seen += 1
+        
+        # Create debug visualization every 30 frames
+        if idx % 30 == 0:
+            debug_frame = frame_bgr.copy()
+            detection_info = f"Frame {idx}: "
+            
+            # Draw circles for both hands
+            for hand_name, wrist in wrists.items():
+                if wrist is not None:
+                    u, v = wrist
+                    color = (0, 0, 255) if hand_name == "right" else (255, 0, 0)  # Red for right, Blue for left
+                    cv2.circle(debug_frame, (int(u), int(v)), 8, color, -1)
+                    detection_info += f"{hand_name}✓ "
+                else:
+                    detection_info += f"{hand_name}✗ "
+            
+            # Add text overlay
+            cv2.putText(debug_frame, detection_info, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            cv2.imwrite(str(debug_dir / f"debug_{idx:06d}.jpg"), debug_frame)
 
-        u, v = wrist
-        z = float(gray_depth[min(int(v), H - 1), min(int(u), W - 1)]) * 1000
-        X, Y, Z = _pixel_to_camera(u, v, z, W, H)
+        # Helper to compute per-hand camera-frame 3D and per-frame speed
+        def _accumulate_for_hand(tag: str):
+            nonlocal prev_right_3d, prev_left_3d, right_detections, left_detections
+            wrist = wrists.get(tag)
+            if wrist is None:
+                if tag == "right":
+                    speed_right[idx] = 0.0
+                    prev_right_3d = None
+                else:
+                    speed_left[idx] = 0.0
+                    prev_left_3d = None
+                return
 
-        # save cam-frame wrist point (for later registration)
-        cam_hand.setdefault(str(idx+1), [X, Y, Z])
+            u, v = wrist
+            u_safe = max(0, min(int(u), W - 1))
+            v_safe = max(0, min(int(v), H - 1))
+            z_depth = float(gray_depth[v_safe, u_safe])
+            if z_depth <= 0 or z_depth > 5.0:
+                if tag == "right":
+                    speed_right[idx] = 0.0
+                    prev_right_3d = None
+                else:
+                    speed_left[idx] = 0.0
+                    prev_left_3d = None
+                return
 
-        if prev_xyz is None:
-            speed = 0.0
-        else:
-            dX, dY, dZ = X - prev_xyz[0], Y - prev_xyz[1], Z - prev_xyz[2]
-            speed = math.sqrt(dX * dX + dY * dY + dZ * dZ)
-        prev_xyz = (X, Y, Z)
-        speed_dict[idx] = speed
+            X, Y, Z = _pixel_to_camera(u, v, z_depth * 1000, W, H)
+            cur = np.array([X, Y, Z])
+            if tag == "right":
+                cam_hand_right[str(idx + 1)] = [float(X), float(Y), float(Z)]
+                if prev_right_3d is None:
+                    speed_right[idx] = 0.0
+                else:
+                    speed_right[idx] = float(np.linalg.norm(cur - prev_right_3d))
+                prev_right_3d = cur
+                right_detections += 1
+            else:
+                cam_hand_left[str(idx + 1)] = [float(X), float(Y), float(Z)]
+                if prev_left_3d is None:
+                    speed_left[idx] = 0.0
+                else:
+                    speed_left[idx] = float(np.linalg.norm(cur - prev_left_3d))
+                prev_left_3d = cur
+                left_detections += 1
 
+        _accumulate_for_hand("right")
+        _accumulate_for_hand("left")
 
-        if (idx + 1) % 100 == 0 or idx == total_frames - 1:
-            print(f"[3D‑Pipeline] Processed {idx + 1}/{total_frames} frames")
+        if (idx + 1) % 100 == 0:
+            r_rate = (right_detections / total_frames_seen) * 100 if total_frames_seen > 0 else 0
+            l_rate = (left_detections / total_frames_seen) * 100 if total_frames_seen > 0 else 0
+            print(f"[3D‑Pipeline] Processed {idx + 1}/{total_frames} | Det. rate – R: {r_rate:.1f}% | L: {l_rate:.1f}%")
 
     cap_rgb.release()
 
-    # Dump raw cam-frame wrist dict
-    with open(cam_hand_json, "w") as f:
-        json.dump(cam_hand, f)
+    # Save camera-frame coordinates per hand
+    cam_hand_right_dir = cam_hand_dir / "right"
+    cam_hand_left_dir = cam_hand_dir / "left"
+    cam_hand_right_dir.mkdir(parents=True, exist_ok=True)
+    cam_hand_left_dir.mkdir(parents=True, exist_ok=True)
+    with open(cam_hand_right_dir / f"{video_name}.json", "w") as f:
+        json.dump(cam_hand_right, f, indent=2)
+    with open(cam_hand_left_dir / f"{video_name}.json", "w") as f:
+        json.dump(cam_hand_left, f, indent=2)
 
-    # Run registration (world coords)
-    reg_out_dir = output_dir / "registered_hands"
-    register_hand_positions(str(pcd_dir.parent), str(cam_hand_dir), str(reg_out_dir))
-    with open(reg_out_dir / f"{video_name}.json") as f:
-        reg_hand = json.load(f)
+    # Run ICP registration per hand to get globally consistent coordinates
+    reg_out_right = output_dir / "registered_hands_right"
+    reg_out_left = output_dir / "registered_hands_left"
+    register_hand_positions(str(pcd_dir.parent), str(cam_hand_right_dir), str(reg_out_right))
+    register_hand_positions(str(pcd_dir.parent), str(cam_hand_left_dir), str(reg_out_left))
+    
+    # Load registered coordinates and calculate world-frame speeds
+    with open(reg_out_right / f"{video_name}.json") as f:
+        reg_hand_right = json.load(f)
+    with open(reg_out_left / f"{video_name}.json") as f:
+        reg_hand_left = json.load(f)
+    
+    # Recalculate speed using globally registered coordinates
+    def _world_speed_from_reg(reg_hand: Dict[str, List[float]]) -> Dict[int, float]:
+        out: Dict[int, float] = {}
+        prev = None
+        for i in range(total_frames):
+            key = str(i + 1)
+            if key in reg_hand:
+                xyz = np.array(reg_hand[key], dtype=float)
+                if prev is None:
+                    out[i] = 0.0
+                else:
+                    out[i] = float(np.linalg.norm(xyz - prev))
+                prev = xyz
+            else:
+                out[i] = 0.0
+                prev = None
+        return out
 
-    speed_dict = {}
-    prev_xyz = None
-    for idx in range(total_frames):
-        xyz = reg_hand.get(str(idx+1))
-        if xyz is None:
-            _log_zero_speed(idx, "no wrist detected")
-            speed_dict[idx] = 0.0
-            prev_xyz = None
-            continue
+    world_speed_right = _world_speed_from_reg(reg_hand_right)
+    world_speed_left = _world_speed_from_reg(reg_hand_left)
+    world_speed_combined: Dict[int, float] = {
+        i: float(max(world_speed_right.get(i, 0.0), world_speed_left.get(i, 0.0)))
+        for i in range(total_frames)
+    }
 
-        if prev_xyz is None:
-            _log_zero_speed(
-                idx,
-                "initial frame" if idx == 0 else "first valid frame after gap",
-            )
-            speed = 0.0
-        else:
-            dx, dy, dz = np.array(xyz) - np.array(prev_xyz)
-            speed = float(np.linalg.norm([dx,dy,dz]))    # true world speed
-        prev_xyz = xyz
-        speed_dict[idx] = speed
+    r_rate = (right_detections / total_frames) * 100 if total_frames > 0 else 0
+    l_rate = (left_detections / total_frames) * 100 if total_frames > 0 else 0
+    print(f"[STATS] Detection rates – Right: {r_rate:.1f}% | Left: {l_rate:.1f}%")
+    for tag, sp in ("right", world_speed_right), ("left", world_speed_left):
+        valid = [v for v in sp.values() if v > 0]
+        print(f"[STATS] {tag.capitalize()} valid speed frames: {len(valid)}/{total_frames}")
 
-    speed_json_path = output_dir / f"{video_name}_speed.json"
-    with open(speed_json_path, "w") as f:
-        json.dump(speed_dict, f, indent=2)
+    # Save world-frame speed per hand and combined
+    speed_json_right = output_dir / f"{video_name}_speed_right.json"
+    speed_json_left = output_dir / f"{video_name}_speed_left.json"
+    speed_json_combined = output_dir / f"{video_name}_speed.json"
+    with open(speed_json_right, "w") as f:
+        json.dump(world_speed_right, f, indent=2)
+    with open(speed_json_left, "w") as f:
+        json.dump(world_speed_left, f, indent=2)
+    with open(speed_json_combined, "w") as f:
+        json.dump(world_speed_combined, f, indent=2)
 
-    plt.figure(figsize=(12, 4))
-    plt.plot(list(speed_dict.keys()), list(speed_dict.values()), label="3‑D Hand Speed")
-    plt.xlabel("Frame")
-    plt.ylabel("Speed (relative)")
-    plt.tight_layout()
-    speed_vis_path = output_dir / f"{video_name}_speed_vis.png"
-    plt.savefig(speed_vis_path)
-    plt.close()
+    # Apply clipping and smoothing for visualization
+    # Prepare arrays for plotting convenience
+    frames = list(world_speed_right.keys())
+    speeds_r = np.array(list(world_speed_right.values()))
+    speeds_l = np.array(list(world_speed_left.values()))
+    speeds_c = np.array(list(world_speed_combined.values()))
+    
+    # 1. Clipping: Remove unreasonable speed values (outliers)
+    # Reasonable hand speed: up to 150mm per frame (adjustable threshold)
+    speed_threshold = 150.0  # mm per frame - adjustable
+    
+    def _clip_and_smooth(arr: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        clipped = arr.copy()
+        mask = (clipped > speed_threshold) & (clipped > 0)
+        clipped[mask] = speed_threshold
+        non_zero_mask = clipped > 0
+        if non_zero_mask.any():
+            nz = clipped[non_zero_mask]
+            if len(nz) > 3:
+                clipped[non_zero_mask] = gaussian_filter1d(nz, sigma=2.0)
+        return clipped, mask
 
-    return speed_dict, str(speed_json_path), str(speed_vis_path), str(depth_vis_path)
+    speeds_r_s, out_r = _clip_and_smooth(speeds_r)
+    speeds_l_s, out_l = _clip_and_smooth(speeds_l)
+    speeds_c_s, out_c = _clip_and_smooth(speeds_c)
+    
+    # Plot per-hand and combined
+    def _plot(arr: np.ndarray, clipped: np.ndarray, mask: np.ndarray, title: str, out_path: Path):
+        plt.figure(figsize=(12, 6))
+        non_zero = arr > 0
+        if non_zero.any():
+            plt.plot(np.array(frames)[non_zero], arr[non_zero], 'lightgray', alpha=0.3, linewidth=0.8, label='Original')
+        nzs = clipped > 0
+        if nzs.any():
+            plt.plot(np.array(frames)[nzs], clipped[nzs], 'b-', linewidth=2, label='Clipped & smoothed')
+        if mask.any():
+            plt.plot(np.array(frames)[mask], arr[mask], 'orange', marker='x', linestyle='None', markersize=4, label='Clipped outliers')
+        plt.xlabel("Frame Index")
+        plt.ylabel("Speed (mm/frame)")
+        plt.title(title)
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.savefig(out_path, dpi=150)
+        plt.close()
+
+    vis_right = output_dir / f"{video_name}_speed_vis_right.png"
+    vis_left = output_dir / f"{video_name}_speed_vis_left.png"
+    vis_combined = output_dir / f"{video_name}_speed_vis.png"
+    _plot(speeds_r, speeds_r_s, out_r, f"Right Hand Speed - {video_name}", vis_right)
+    _plot(speeds_l, speeds_l_s, out_l, f"Left Hand Speed - {video_name}", vis_left)
+    _plot(speeds_c, speeds_c_s, out_c, f"Combined (max) Speed - {video_name}", vis_combined)
+
+    print(f"[OUTPUT] Speed data (right): {speed_json_right}")
+    print(f"[OUTPUT] Speed data (left):  {speed_json_left}")
+    print(f"[OUTPUT] Speed data (combined): {speed_json_combined}")
+    print(f"[OUTPUT] Speed vis (right): {vis_right}")
+    print(f"[OUTPUT] Speed vis (left):  {vis_left}")
+    print(f"[OUTPUT] Speed vis (combined): {vis_combined}")
+    print(f"[OUTPUT] Debug frames: {debug_dir}")
+
+    # Backward-compatible return of the combined artefacts
+    return world_speed_combined, str(speed_json_combined), str(vis_combined), str(depth_vis_path)
 
 # Point Cloud Generation
 def _generate_pointclouds(depth_dir: Path,  video_path: str, pcd_out_dir: Path, intrinsics: Optional[Tuple[float,float,float,float]] = None):
@@ -1026,7 +1257,7 @@ def _generate_pointclouds(depth_dir: Path,  video_path: str, pcd_out_dir: Path, 
     print(f"[PCD] Generated {len(depth_files)} point clouds in {pcd_out_dir}")
 
 # Video Convert
-def convert_video(video_path: str, action: str, credentials: Dict[str, Any], grid_size: int, speed_folder: str, max_feedbacks: int = MAX_FEEDBACKS, repeat_times: int = 3):
+def convert_video(video_path: str, action: str, credentials: Dict[str, Any], grid_size: int, speed_folder: str, max_feedbacks: int = MAX_FEEDBACKS, repeat_times: int = 3, *, hand: str = "either"):
     """Driver wrapper (identical logic to 2-D)."""
     cap = cv2.VideoCapture(video_path)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -1042,6 +1273,7 @@ def convert_video(video_path: str, action: str, credentials: Dict[str, Any], gri
             total_frames,
             "start",
             speed_folder,
+            hand=hand,
         )
         frame_end = process_task(
             credentials,
@@ -1051,6 +1283,7 @@ def convert_video(video_path: str, action: str, credentials: Dict[str, Any], gri
             total_frames,
             "end",
             speed_folder,
+            hand=hand,
         )
         frame_contact = feedback_contact(
             credentials,
@@ -1062,6 +1295,7 @@ def convert_video(video_path: str, action: str, credentials: Dict[str, Any], gri
             max_feedbacks,
             "start",
             speed_folder,
+            hand=hand,
         )
         frame_separate = feedback_separation(
             credentials,
@@ -1073,6 +1307,7 @@ def convert_video(video_path: str, action: str, credentials: Dict[str, Any], gri
             max_feedbacks,
             "end",
             speed_folder,
+            hand=hand,
         )
         contact_list.append(frame_contact)
         separate_list.append(frame_separate)
@@ -1100,12 +1335,163 @@ def visualize_frame(video_path: str, idx: int, out_path: str, label: Optional[st
     print(f"Visualized frame {idx} to {out_path}")
 
 
+# Diagnostic function for debugging hand detection issues
+def diagnose_video_and_detection(
+    video_path: str,
+    depth_dir: Path,
+    output_dir: Path,
+    *,
+    device: str = "cuda",
+    sample_frames: int = 10,
+    save_all_frames: bool = False,
+) -> None:
+    """
+    Diagnostic function to understand why hand detection might be failing.
+    Samples frames and reports on video properties, depth quality, and detection success.
+    If *save_all_frames* is True, RGB frames with detected wrists (red dots) **and**
+    corresponding depth visualisations will be saved for *every* frame, not just the
+    sampled ones.
+    """
+    print(f"\n=== DIAGNOSTIC REPORT FOR {video_path} ===")
+    
+    # 1. Video properties analysis
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        print("ERROR: Cannot open video file")
+        return
+        
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fourcc = int(cap.get(cv2.CAP_PROP_FOURCC))
+    fourcc_str = "".join([chr((fourcc >> 8 * i) & 0xFF) for i in range(4)])
+    
+    print(f"Video Properties:")
+    print(f"   • Resolution: {width}x{height}")
+    print(f"   • Total frames: {total_frames}")
+    print(f"   • FPS: {fps}")
+    print(f"   • Codec: {fourcc_str}")
+    
+    # 2. Sample frame analysis
+    cpm = _get_vitpose_model(device)
+    detection_success = 0
+    depth_success = 0
+    
+    if save_all_frames:
+        sample_indices = np.arange(total_frames, dtype=int)
+    else:
+        sample_indices = np.linspace(0, total_frames - 1, sample_frames, dtype=int)
+
+    # output folders for JPG dumps
+    rgb_dump_dir = output_dir / "diagnostic_rgb"
+    depth_dump_dir = output_dir / "diagnostic_depth"
+    if save_all_frames:
+        rgb_dump_dir.mkdir(parents=True, exist_ok=True)
+        depth_dump_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"Sampling {sample_frames} frames for analysis:")
+    
+    for i, frame_idx in enumerate(sample_indices):
+        # Read RGB frame
+        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+        ok, frame_bgr = cap.read()
+        if not ok:
+            print(f"   Frame {frame_idx}: Could not read RGB")
+            continue
+            
+        # Check depth
+        depth = _load_depth(depth_dir, frame_idx)
+        if depth is None:
+            print(f"   Frame {frame_idx}: No valid depth data")
+            continue
+        else:
+            depth_success += 1
+            
+        # Check depth statistics
+        depth_min, depth_max = depth.min(), depth.max()
+        depth_mean = depth.mean()
+        
+        # Check hand detection
+        wrists = _wrist_from_frame(frame_bgr, depth, cpm)
+        hands_detected = sum(1 for w in wrists.values() if w is not None)
+        
+        if hands_detected > 0:
+            detection_success += 1
+            status = f"{hands_detected} hands detected"
+        else:
+            status = "No hands detected"
+            
+        print(
+            f"   Frame {frame_idx}: {status}, Depth: {depth_min:.2f}-{depth_max:.2f}m (avg: {depth_mean:.2f}m)"
+        )
+
+        # Dump annotated RGB + depth images (only when asked)
+        if save_all_frames:
+            vis_rgb = frame_bgr.copy()
+            for pt in wrists.values():
+                if pt is not None:
+                    u, v = map(int, pt)
+                    cv2.circle(vis_rgb, (u, v), 6, (0, 0, 255), -1)  # red dot
+
+            cv2.imwrite(str(rgb_dump_dir / f"rgb_{frame_idx:06d}.jpg"), vis_rgb)
+
+            # Convert depth (metres) to inverse depth for better contrast then to 8-bit
+            inv = 1.0 / (depth + 1e-6)
+            inv_norm = cv2.normalize(inv, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+            depth_col = cv2.applyColorMap(inv_norm, cv2.COLORMAP_INFERNO)
+            cv2.imwrite(
+                str(depth_dump_dir / f"depth_{frame_idx:06d}.jpg"), depth_col
+            )
+    
+    cap.release()
+    
+    # 3. Summary
+    detection_rate = (detection_success / sample_frames) * 100
+    depth_rate = (depth_success / sample_frames) * 100
+    
+    print(f"\nSummary:")
+    print(f"   • Valid depth frames: {depth_success}/{sample_frames} ({depth_rate:.1f}%)")
+    print(f"   • Successful hand detection: {detection_success}/{sample_frames} ({detection_rate:.1f}%)")
+    
+    if detection_rate < 50:
+        print(f"WARNING: Low hand detection rate ({detection_rate:.1f}%)")
+        print(f"   This suggests:")
+        print(f"   • Video format/encoding issues affecting hand detection")
+        print(f"   • Poor depth quality from Video-Depth-Anything")
+        print(f"   • Color space/compression artifacts")
+        print(f"   • Hands not clearly visible in frames")
+    
+    if depth_rate < 90:
+        print(f"WARNING: Poor depth data quality ({depth_rate:.1f}%)")
+        print(f"   This suggests Video-Depth-Anything is struggling with this video")
+    
+    # 4. Save sample debug frame
+    if sample_indices.size > 0 and not save_all_frames:
+        mid_idx = sample_indices[len(sample_indices)//2]
+        cap = cv2.VideoCapture(video_path)
+        cap.set(cv2.CAP_PROP_POS_FRAMES, mid_idx)
+        ok, frame = cap.read()
+        if ok:
+            debug_path = output_dir / f"debug_frame_{mid_idx}.jpg"
+            cv2.imwrite(str(debug_path), frame)
+            print(f"Saved debug frame: {debug_path}")
+        cap.release()
+    
+    print("=" * 60)
+
 # CLI entry point (with feedback loop)
 def main():
-    parser = argparse.ArgumentParser("EgoLoc 3-D Demo (lite edition)")
+    parser = argparse.ArgumentParser("EgoLoc 3‑D Demo (bimanual edition)")
     parser.add_argument("--video_path", required=True, help="Input video")
     parser.add_argument(
         "--action", default="Grasping the object", help="Action label shown to GPT-4o"
+    )
+    parser.add_argument(
+        "--hand",
+        default="both",
+        choices=["both", "either", "right", "left"],
+        help="Which hand(s) to analyze in temporal localization"
     )
     parser.add_argument(
         "--grid_size", type=int, default=3, help="Grid size for numbered frame grids"
@@ -1126,6 +1512,11 @@ def main():
         choices=["vits", "vitl"],
         help="Video-Depth-Anything backbone: 'vits' (small) or 'vitl' (large)",
     )
+    parser.add_argument(
+        "--diagnose",
+        action="store_true",
+        help="Run diagnostic mode to analyze video and hand detection issues",
+    )
     args = parser.parse_args()
 
     if args.device == "auto":
@@ -1136,7 +1527,28 @@ def main():
     else:
         device = args.device
 
-    print("\n [1/3] Extracting 3-D hand speed and visualizing ...")
+    if args.diagnose:
+        print("\nDIAGNOSTIC MODE - Analyzing video and hand detection...")
+        
+        # Run minimal depth generation for diagnostics
+        output_dir = Path(args.output_dir)
+        depth_dir = output_dir / "depth"
+        if not (depth_dir / "pred_depth_000000.npy").exists():
+            print("Generating depth data for diagnosis...")
+            generate_depth_video_vda(args.video_path, depth_dir, device=device, encoder=args.encoder)
+        
+        # Run diagnostics (dumping per-frame RGB+depth)
+        diagnose_video_and_detection(
+            args.video_path,
+            depth_dir,
+            output_dir,
+            device=device,
+            save_all_frames=True,
+        )
+        print("Diagnostic complete. Exiting.")
+        return
+
+    print("\n [1/3] Extracting 3‑D hand speed (bimanual) and visualizing ...")
     speed_dict, speed_json, speed_vis, depth_vid = extract_3d_speed_and_visualize(
         args.video_path,
         args.output_dir,
@@ -1147,39 +1559,73 @@ def main():
     print("\n [2/3] Locating contact/separation frames and visualizing ...")
     credentials = dotenv.dotenv_values(args.credentials)
 
-    contact_idx, separation_idx = convert_video(
-        args.video_path,
-        args.action,
-        credentials,
-        args.grid_size,
-        args.output_dir,  # *_speed.json lives here
-        max_feedbacks=1,  # GPT-4o stops early once verified
-        repeat_times=1,
-    )
-    print(f"Resolved ➜ contact: {contact_idx}, separation: {separation_idx}")
-
+    # Validate speed data before proceeding
     video_name = Path(args.video_path).stem
-    contact_vis = Path(args.output_dir) / f"{video_name}_contact_frame.png"
-    separation_vis = Path(args.output_dir) / f"{video_name}_separation_frame.png"
-    visualize_frame(args.video_path, contact_idx, str(contact_vis), "Contact")
-    visualize_frame(args.video_path, separation_idx, str(separation_vis), "Separation")
+    def _validate(path: Path, label: str):
+        if path.exists():
+            with open(path, 'r') as f:
+                data = json.load(f)
+            valid = [v for v in data.values() if v != 0 and not math.isnan(v)]
+            print(f"[INFO] {label} speed frames valid: {len(valid)}/{len(data)}")
+    _validate(Path(args.output_dir) / f"{video_name}_speed_right.json", "Right")
+    _validate(Path(args.output_dir) / f"{video_name}_speed_left.json", "Left")
+    _validate(Path(args.output_dir) / f"{video_name}_speed.json", "Combined")
+
+    results: Dict[str, Dict[str, int]] = {}
+    def _run_localize(tag: str):
+        c_idx, s_idx = convert_video(
+            args.video_path,
+            args.action,
+            credentials,
+            args.grid_size,
+            args.output_dir,
+            max_feedbacks=1,
+            repeat_times=1,
+            hand=tag,
+        )
+        results[tag] = {"contact_frame": c_idx, "separation_frame": s_idx}
+        # Visualize
+        contact_vis = Path(args.output_dir) / f"{video_name}_contact_frame_{tag}.png"
+        separation_vis = Path(args.output_dir) / f"{video_name}_separation_frame_{tag}.png"
+        visualize_frame(args.video_path, c_idx, str(contact_vis), f"Contact ({tag})")
+        visualize_frame(args.video_path, s_idx, str(separation_vis), f"Separation ({tag})")
+        return contact_vis, separation_vis
+
+    if args.hand in ("both", "right"):
+        r_contact_vis, r_sep_vis = _run_localize("right")
+        print(f"Resolved (right) ➜ contact: {results['right']['contact_frame']}, separation: {results['right']['separation_frame']}")
+    if args.hand in ("both", "left"):
+        l_contact_vis, l_sep_vis = _run_localize("left")
+        print(f"Resolved (left)  ➜ contact: {results['left']['contact_frame']}, separation: {results['left']['separation_frame']}")
+    if args.hand == "either":
+        c_contact_vis, c_sep_vis = _run_localize("either")
+        print(f"Resolved (combined) ➜ contact: {results['either']['contact_frame']}, separation: {results['either']['separation_frame']}")
 
     print("\n [3/3] Saving results ...")
-    result = {
-        "contact_frame": contact_idx,
-        "separation_frame": separation_idx,
-    }
-    result_path = Path(args.output_dir) / f"{video_name}_result.json"
-    with open(result_path, "w") as f:
-        json.dump(result, f, indent=2)
+    results_path = Path(args.output_dir) / f"{video_name}_result_bimanual.json"
+    with open(results_path, "w") as f:
+        json.dump(results, f, indent=2)
 
-    print("EgoLoc output\n", result)
-    print(f"Result json      : {result_path}")
-    print(f"3-D speed json   : {speed_json}")
-    print(f"3-D speed vis    : {speed_vis}")
-    print(f"Depth video      : {depth_vid}")
-    print(f"Contact frame vis: {contact_vis}")
-    print(f"Separation vis   : {separation_vis}")
+    print("EgoLoc bimanual output:", results)
+    print(f"Results saved to: {results_path}")
+    
+    # Speed data files
+    right_speed = Path(args.output_dir) / f"{video_name}_speed_right.json"
+    left_speed = Path(args.output_dir) / f"{video_name}_speed_left.json" 
+    combined_speed = Path(args.output_dir) / f"{video_name}_speed.json"
+    print(f"Speed data - Right: {right_speed}")
+    print(f"Speed data - Left: {left_speed}")
+    print(f"Speed data - Combined: {combined_speed}")
+    
+    # Visualization files
+    right_vis = Path(args.output_dir) / f"{video_name}_speed_vis_right.png"
+    left_vis = Path(args.output_dir) / f"{video_name}_speed_vis_left.png"
+    combined_vis = Path(args.output_dir) / f"{video_name}_speed_vis.png"
+    print(f"Visualizations - Right: {right_vis}")
+    print(f"Visualizations - Left: {left_vis}")
+    print(f"Visualizations - Combined: {combined_vis}")
+    
+    print(f"Depth video: {depth_vid}")
 
 
 if __name__ == "__main__":
