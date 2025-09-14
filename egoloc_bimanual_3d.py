@@ -124,7 +124,6 @@ def get_json_path_for_hand(video_name: str, base_dir: str, hand: str) -> str:
     return os.path.join(base_dir, f"{video_name}_speed_{hand}.json")
 
 
-#                           IMAGE HELPERS
 def image_resize(image, width=None, height=None, inter=cv2.INTER_AREA):
     """Resize *image* while preserving aspect ratio."""
     if width is None and height is None:
@@ -158,7 +157,6 @@ def image_resize_for_vlm(frame, inter=cv2.INTER_AREA):
             new_h = int(new_w / aspect)
     return cv2.resize(frame, (new_w, new_h), interpolation=inter)
 
-#                     VISION–LANGUAGE MODEL WRAPPER
 def extract_json_part(text_output: str) -> Optional[str]:
     """Extract the JSON fragment {"points":[...]} from GPT text output."""
     text = text_output.strip().replace(" ", "").replace("\n", "")
@@ -248,8 +246,6 @@ def scene_understanding(credentials: Dict[str, Any], frame: np.ndarray, prompt: 
     except Exception:  # malformed JSON or no "points"
         return -1, content
 
-
-#        GRID BUILDERS & FRAME-SELECTION UTILITIES  (verbatim from 2-D)
 def create_frame_grid_with_keyframe(video_path: str, frame_indices: List[int], grid_size: int) -> np.ndarray:
     """Return a numbered frame grid (BGR uint8)."""
     spacer = 0
@@ -418,7 +414,6 @@ def select_and_filter_keyframes_with_anchor(sel: List[int], total_idx: List[int]
     return sorted(filtered)
 
 
-#             FEEDBACK + TASK-SELECTION (verbatim logic)
 def determine_by_state(credentials, video_path, action, grid_size, total_frames, frame_index, anchor, speed_folder):
     """Ask GPT-4o if *frame_index* is valid contact/separation."""
     prompt = (
@@ -544,15 +539,15 @@ def feedback_separation(credentials, video_path, action, grid_size, total_frames
 def process_task(credentials, video_path, action, grid_size, total_frames, anchor, speed_folder, frame_index=None, flag=None, *, hand: str = "either"):
     """Core routine that builds frame grid, asks GPT-4o for best frame."""
     prompt_start = (
-        "I will show an image grid of numbered frames showing a hand-object action. "
-        "Pick the number closest to when the action ({action}) STARTS. "
-        "If the action is absent, choose -1. "
+        f"I will show an image grid of numbered frames showing a hand-object action. "
+        f"Pick the number closest to when the action ({action}) STARTS. "
+        f"If the action is absent, choose -1. "
         'Return JSON strictly as {"points": [<number>]} with no extra text.'
     )
     prompt_end = (
-        "I will show an image grid of numbered frames showing a hand-object action. "
-        "Pick the number closest to when the action ({action}) ENDS. "
-        "If the action has not ended, choose -1. "
+        f"I will show an image grid of numbered frames showing a hand-object action. "
+        f"Pick the number closest to when the action ({action}) ENDS. "
+        f"If the action has not ended, choose -1. "
         'Return JSON strictly as {"points": [<number>]} with no extra text.'
     )
     prompt = prompt_start if anchor == "start" else prompt_end
@@ -652,7 +647,6 @@ def generate_depth_video_vda(video_path: str, depth_out_path: str, *, device: st
 
     return depth_out_path
 
-#                     DEPTH-TENSOR REPAIR HELPERS
 def _invalid_depth_indices(depth_dir: Path) -> List[int]:
     """Return a list of frame indices whose depth tensors are unusable."""
     bad_idx = []
