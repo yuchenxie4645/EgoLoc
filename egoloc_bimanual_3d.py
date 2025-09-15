@@ -8,7 +8,6 @@ EgoLoc/
 └── Video-Depth-Anything/ ← git clone https://github.com/DepthAnything/Video-Depth-Anything.git
 """
 
-# Imports
 import argparse
 import base64
 import json
@@ -93,7 +92,6 @@ def _is_invalid_inv(inv: np.ndarray) -> bool:
     """
     return (not np.isfinite(inv).any()) or np.nanstd(inv) < 1e-4
 
-
 def count_bad_depth_tensors(depth_dir: Path) -> Tuple[int, int]:
     """
     Scan *.npy files in *depth_dir* and count how many are unusable.
@@ -110,7 +108,6 @@ def count_bad_depth_tensors(depth_dir: Path) -> Tuple[int, int]:
 def get_json_path(video_name: str, base_dir: str):
     return os.path.join(base_dir, f"{video_name}_speed.json")
 
-
 def get_json_path_for_hand(video_name: str, base_dir: str, hand: str) -> str:
     """Return speed JSON path for a specific hand or combined.
 
@@ -122,7 +119,6 @@ def get_json_path_for_hand(video_name: str, base_dir: str, hand: str) -> str:
     if hand not in {"right", "left"}:
         raise ValueError("hand must be one of: right, left, either")
     return os.path.join(base_dir, f"{video_name}_speed_{hand}.json")
-
 
 def image_resize(image, width=None, height=None, inter=cv2.INTER_AREA):
     """Resize *image* while preserving aspect ratio."""
@@ -136,7 +132,6 @@ def image_resize(image, width=None, height=None, inter=cv2.INTER_AREA):
         r = width / float(w)
         dim = (width, int(h * r))
     return cv2.resize(image, dim, interpolation=inter)
-
 
 def image_resize_for_vlm(frame, inter=cv2.INTER_AREA):
     """Resize an image so the short side ≤ 768 px and long side ≤ 2000 px."""
